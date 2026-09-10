@@ -1,0 +1,200 @@
+.find-vehicle-container {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.fv-header {
+  margin-bottom: 8px;
+}
+
+.fv-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  color: var(--color-text);
+}
+
+.fv-header-icon {
+  color: var(--color-primary);
+}
+
+.fv-header p {
+  margin: 0;
+  color: var(--color-text-light);
+  font-size: 15px;
+}
+
+.fv-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  gap: 16px;
+}
+
+.search-bar {
+  position: relative;
+  flex: 1;
+  max-width: 400px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-light);
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.search-bar input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
+}
+
+.btn-refresh {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-text-light);
+}
+
+.btn-refresh:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
+
+.fv-table-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.fv-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.fv-table th, .fv-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.fv-table th {
+  font-weight: 600;
+  color: var(--color-text-light);
+  background: rgba(0,0,0,0.2);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+.fv-table tr {
+  transition: background-color 0.2s;
+}
+
+.fv-table tbody tr:hover {
+  background: var(--color-surface-hover);
+}
+
+.fv-empty {
+  text-align: center;
+  padding: 40px !important;
+  color: var(--color-text-light);
+  font-style: italic;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
+
+.plate-cell {
+  font-family: monospace;
+}
+
+.plate-badge {
+  display: inline-block;
+  background: #facc15;
+  color: #000;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border: 1px solid #ca8a04;
+}
+
+.no-plate {
+  color: var(--color-text-light);
+  font-style: italic;
+  font-size: 13px;
+}
+
+.confidence-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 120px;
+}
+
+.confidence-bar span {
+  font-variant-numeric: tabular-nums;
+  min-width: 30px;
+  text-align: right;
+}
+
+.confidence-fill {
+  height: 6px;
+  border-radius: 3px;
+  flex: 1;
+}
+
+.fv-error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+}
