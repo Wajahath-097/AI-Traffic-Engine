@@ -13,7 +13,7 @@ def seed_admin():
             return
 
         # Get admin role
-        admin_role = db.query(Role).filter(Role.name == "administrator").first()
+        admin_role = db.query(Role).filter(Role.name == "Super Admin").first()
         if not admin_role:
             print("Admin role not found. Please restart the backend to initialize roles.")
             return

@@ -8,7 +8,7 @@ from sqlalchemy import desc, func
 from app.database import get_db
 from app.models.models import User, Role, AuditLog, BlacklistEntry, Camera, Alert, VehicleDetection
 from app.schemas.schemas import UserCreate, UserResponse, BlacklistEntryCreate, BlacklistEntryResponse, AuditLogResponse, RoleResponse
-from app.core.dependencies import get_current_admin, get_current_user
+from app.core.dependencies import get_current_super_admin, get_current_user
 from app.core.security import hash_password
 from typing import List
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ router = APIRouter()
 
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -36,7 +36,7 @@ async def list_users(
 @router.post("/users", response_model=UserResponse)
 async def create_user(
     user_data: UserCreate,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -93,7 +93,7 @@ async def create_user(
 async def update_user(
     user_id: str,
     user_data: dict,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -140,7 +140,7 @@ async def update_user(
 @router.delete("/users/{user_id}")
 async def delete_user(
     user_id: str,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -175,7 +175,7 @@ async def delete_user(
 
 @router.get("/roles", response_model=List[RoleResponse])
 async def list_roles(
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -192,7 +192,7 @@ async def get_audit_logs(
     user_id: str = Query(None),
     action: str = Query(None),
     limit: int = Query(100, le=1000),
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -219,7 +219,7 @@ async def get_audit_logs(
 
 @router.get("/blacklist", response_model=List[BlacklistEntryResponse])
 async def get_blacklist(
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -235,7 +235,7 @@ async def get_blacklist(
 @router.post("/blacklist", response_model=BlacklistEntryResponse)
 async def add_to_blacklist(
     entry_data: BlacklistEntryCreate,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -303,7 +303,7 @@ async def add_to_blacklist(
 @router.delete("/blacklist/{plate}")
 async def remove_from_blacklist(
     plate: str,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -341,7 +341,7 @@ async def remove_from_blacklist(
 
 @router.get("/system-status")
 async def get_system_status(
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """

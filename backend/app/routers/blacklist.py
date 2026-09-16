@@ -7,7 +7,7 @@ import uuid
 
 from app.database import get_db
 from app.models.models import BlacklistEntry, User
-from app.routers.auth import get_current_user
+from app.core.dependencies import get_current_traffic_officer
 
 router = APIRouter(prefix="/api/blacklist", tags=["blacklist"])
 
@@ -27,7 +27,7 @@ class BlacklistResponse(BaseModel):
         from_attributes = True
 
 @router.get("", response_model=List[BlacklistResponse])
-def get_blacklist(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_blacklist(db: Session = Depends(get_db), current_user: User = Depends(get_current_traffic_officer)):
     from app.models.models import VehicleDetection
     entries = db.query(BlacklistEntry).order_by(BlacklistEntry.created_at.desc()).all()
     
@@ -50,7 +50,7 @@ def get_blacklist(db: Session = Depends(get_db), current_user: User = Depends(ge
     return result
 
 @router.post("", response_model=BlacklistResponse)
-def add_blacklist(entry: BlacklistCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def add_blacklist(entry: BlacklistCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_traffic_officer)):
     existing = db.query(BlacklistEntry).filter(BlacklistEntry.plate_number == entry.plate_number).first()
     if existing:
         raise HTTPException(status_code=400, detail="Plate is already blacklisted")
@@ -67,7 +67,7 @@ def add_blacklist(entry: BlacklistCreate, db: Session = Depends(get_db), current
     return db_entry
 
 @router.delete("/{entry_id}")
-def delete_blacklist(entry_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_blacklist(entry_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_traffic_officer)):
     entry = db.query(BlacklistEntry).filter(BlacklistEntry.id == entry_id).first()
     if not entry:
         raise HTTPException(status_code=404, detail="Entry not found")

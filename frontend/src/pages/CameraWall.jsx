@@ -15,9 +15,7 @@ export default function CameraWall() {
   const getVideoSrc = (camera) => {
     if (camera.status === 'offline') return null;
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-    if (camera.camera_id === 'CAM-001') return `${baseUrl}/api/media/offline_videos/13020032_3840_2160_30fps.mp4?v=1`;
-    if (camera.camera_id === 'CAM-002') return `${baseUrl}/api/media/offline_videos/13105476_3840_2160_30fps.mp4?v=1`;
-    return `${baseUrl}/api/media/offline_videos/14985169_1920_1080_25fps.mp4?v=1`;
+    return `${baseUrl}/api/cameras/${camera.camera_id}/stream`;
   };
 
   useEffect(() => {
@@ -74,18 +72,10 @@ export default function CameraWall() {
           <div key={camera.id} className="camera-card card" onClick={() => setSelectedCamera(camera)} style={{ cursor: 'pointer', transition: 'transform 0.2s' }}>
             <div className="camera-visual" style={{ position: 'relative', background: '#000', borderRadius: '4px 4px 0 0', overflow: 'hidden', height: '240px' }}>
               {getVideoSrc(camera) ? (
-                <video 
-                  autoPlay 
-                  muted 
-                  playsInline
-                  preload="auto"
-                  crossOrigin="anonymous"
-                  onEnded={(e) => {
-                    e.target.currentTime = 0;
-                    e.target.play().catch(() => {});
-                  }}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+                <img 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   src={getVideoSrc(camera)}
+                  alt={`Stream for ${camera.camera_id}`}
                 />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '18px', fontWeight: 'bold' }}>
@@ -186,14 +176,16 @@ export default function CameraWall() {
                           <span style={{ background: 'rgba(255,255,255,0.08)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}>
                             {det.vehicle_color ? det.vehicle_color.toUpperCase() : 'UNKNOWN COLOR'}
                           </span>
-                          <span style={{ 
-                              padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold',
-                              background: det.verification_status === 'VERIFIED' ? 'rgba(0,255,0,0.15)' : det.verification_status === 'MISMATCH' ? 'rgba(255,0,0,0.15)' : 'rgba(255,255,255,0.1)',
-                              color: det.verification_status === 'VERIFIED' ? '#00ff00' : det.verification_status === 'MISMATCH' ? '#ff4444' : '#aaaaaa',
-                              border: `1px solid ${det.verification_status === 'VERIFIED' ? '#00ff00' : det.verification_status === 'MISMATCH' ? '#ff4444' : '#555'}`
-                          }}>
-                            {det.verification_status || 'UNVERIFIED'}
-                          </span>
+                          {det.verification_status !== 'NOT_FOUND' && (
+                            <span style={{ 
+                                padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold',
+                                background: det.verification_status === 'VERIFIED' ? 'rgba(0,255,0,0.15)' : det.verification_status === 'MISMATCH' ? 'rgba(255,0,0,0.15)' : 'rgba(255,255,255,0.1)',
+                                color: det.verification_status === 'VERIFIED' ? '#00ff00' : det.verification_status === 'MISMATCH' ? '#ff4444' : '#aaaaaa',
+                                border: `1px solid ${det.verification_status === 'VERIFIED' ? '#00ff00' : det.verification_status === 'MISMATCH' ? '#ff4444' : '#555'}`
+                            }}>
+                              {det.verification_status || 'UNVERIFIED'}
+                            </span>
+                          )}
                         </div>
                         
                         <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--color-text-light)', display: 'flex', justifyContent: 'space-between' }}>

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import Camera, CameraHealthEvent, AuditLog
 from app.schemas.schemas import CameraCreate, CameraResponse, CameraUpdate, CameraHealthResponse
-from app.core.dependencies import get_current_user, get_current_admin, get_current_officer
+from app.core.dependencies import get_current_user, get_current_super_admin, get_current_control_room
 from app.models.models import User
 from typing import List
 from datetime import datetime, timedelta
@@ -20,7 +20,7 @@ router = APIRouter()
 
 @router.get("/", response_model=List[CameraResponse])
 async def list_cameras(
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -33,7 +33,7 @@ async def list_cameras(
 @router.get("/{camera_id}", response_model=CameraResponse)
 async def get_camera(
     camera_id: str,
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -62,7 +62,7 @@ async def get_camera(
 @router.post("/", response_model=CameraResponse)
 async def create_camera(
     camera_data: CameraCreate,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -113,7 +113,7 @@ async def create_camera(
 async def update_camera(
     camera_id: str,
     camera_data: CameraUpdate,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -162,7 +162,7 @@ async def update_camera(
 @router.delete("/{camera_id}")
 async def delete_camera(
     camera_id: str,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -199,7 +199,7 @@ async def delete_camera(
 async def get_camera_health(
     camera_id: str,
     limit: int = Query(100, le=1000),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -270,129 +270,173 @@ from app.models.models import RegisteredVehicle
 LIVE_DETECTIONS = {}
 
 @router.get("/{camera_id}/stream")
-async def stream_camera(camera_id: str, db: Session = Depends(get_db)):
+async def stream_camera(camera_id: str):
     # Generator for MJPEG
     def generate_frames():
-        camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
-        if not camera:
-            return
+        from app.database import SessionLocal
+        db = SessionLocal()
+        try:
+            camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
+            if not camera:
+                return
             
-        video_map = {
-            "CAM-001": "13020032_3840_2160_30fps.mp4",
-            "CAM-002": "13105476_3840_2160_30fps.mp4",
-            "CAM-003": "14985169_1920_1080_25fps.mp4"
-        }
-        video_file = video_map.get(camera_id, "13020032_3840_2160_30fps.mp4")
-        
-        from pathlib import Path
-        backend_dir = Path(__file__).resolve().parent.parent.parent
-        video_path = str(backend_dir.parent / "media" / "offline_videos" / video_file)
-        
-        cap = cv2.VideoCapture(video_path)
-        if not cap.isOpened():
-            logger.error(f"Failed to open video: {video_path}")
-            return
-            
-        detector = get_yolo_detector()
-        ocr = get_ocr_engine()
-        
-        frame_count = 0
-        last_boxes = []
-        
-        if camera_id not in LIVE_DETECTIONS:
-            LIVE_DETECTIONS[camera_id] = []
-            
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                continue
-                
-            frame_count += 1
-            
-            # Process every 5th frame to save CPU
-            if frame_count % 5 == 0:
-                small_frame = cv2.resize(frame, (1280, 720))
-                detections = detector.detect_vehicles(small_frame, confidence_threshold=0.4)
-                
-                current_boxes = []
-                recent_live_dets = []
-                
-                for det in detections:
-                    bbox = det["bbox"]
-                    v_class = det["class"]
-                    
-                    plate_region = detector.detect_plates(small_frame, bbox)
-                    plate_text = ""
-                    if plate_region:
-                        ocr_res = ocr.recognize_plate(small_frame, plate_region["bbox"])
-                        if ocr_res and ocr_res.get("normalized_text"):
-                            plate_text = ocr_res.get("normalized_text")
-                            if "MOCKPLATE" in plate_text:
-                                plate_text = ""
-                    
-                    color = "unknown"
-                    status = "UNVERIFIED"
-                    if plate_text:
-                        color = detector.detect_color(small_frame, bbox)
-                        # Check RTO Database
-                        rto_record = db.query(RegisteredVehicle).filter(RegisteredVehicle.plate_number == plate_text).first()
-                        if rto_record:
-                            # Verify class (YOLO class vs RTO class) and color
-                            if rto_record.vehicle_class.lower() == v_class.lower():
-                                status = "VERIFIED"
-                            else:
-                                status = "MISMATCH"
-                        else:
-                            status = "NOT_FOUND"
-                            
-                        # Cloud evidence mock URL
-                        cloud_url = f"s3://traffic-evidence-bucket/{camera_id}_{plate_text}_{int(time.time())}.jpg"
-                            
-                        det_info = {
-                            "id": f"{plate_text}_{int(time.time())}",
-                            "plate_number": plate_text,
-                            "vehicle_class": v_class,
-                            "vehicle_color": color,
-                            "confidence": round(det["confidence"] * 100, 1),
-                            "verification_status": status,
-                            "detected_at": datetime.utcnow().isoformat() + "Z",
-                            "evidence_url": cloud_url
-                        }
-                        recent_live_dets.append(det_info)
-                        
-                    current_boxes.append((bbox, v_class, plate_text, det["confidence"], status))
-                    
-                last_boxes = current_boxes
-                if recent_live_dets:
-                    # Prepend newest detections, keep max 10
-                    LIVE_DETECTIONS[camera_id] = (recent_live_dets + LIVE_DETECTIONS[camera_id])[:10]
-                    
-                draw_frame = small_frame
+            # Check if camera has a valid RTSP/HTTP stream configured
+            if camera.stream_secret_ref and camera.stream_secret_ref.startswith(("rtsp://", "http://", "https://")):
+                video_path = camera.stream_secret_ref
+                is_live_stream = True
             else:
-                draw_frame = cv2.resize(frame, (1280, 720))
-                
-            # Draw boxes
-            for bbox, v_class, plate_text, conf, status in last_boxes:
-                x1, y1, x2, y2 = map(int, bbox)
-                
-                box_color = (0, 255, 0) # Green for verified/unverified
-                if status == "MISMATCH":
-                    box_color = (0, 0, 255) # Red for mismatch
-                    
-                cv2.rectangle(draw_frame, (x1, y1), (x2, y2), box_color, 2)
-                label = f"{v_class} {conf:.2f}"
-                if plate_text:
-                    label += f" [{plate_text}]"
-                cv2.putText(draw_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, box_color, 2)
-                
-            ret, buffer = cv2.imencode('.jpg', draw_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-            frame_bytes = buffer.tobytes()
+                # Fallback to offline demo videos
+                video_map = {
+                    "CAM-001": "13020032_3840_2160_30fps.mp4",
+                    "CAM-002": "13105476_3840_2160_30fps.mp4",
+                    "CAM-003": "14985169_1920_1080_25fps.mp4"
+                }
+                video_file = video_map.get(camera_id, "13020032_3840_2160_30fps.mp4")
+    
+                from pathlib import Path
+                backend_dir = Path(__file__).resolve().parent.parent.parent
+                video_path = str(backend_dir.parent / "media" / "offline_videos" / video_file)
+                is_live_stream = False
+
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                logger.error(f"Failed to open video: {video_path}")
+                return
+
+            detector = get_yolo_detector()
+            ocr = get_ocr_engine()
+
+            if camera_id not in LIVE_DETECTIONS:
+                LIVE_DETECTIONS[camera_id] = []
+
+            # Background AI processing
+            import threading
+            import queue
             
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-                   
-            time.sleep(0.04)
+            frame_queue = queue.Queue(maxsize=1)
+            shared_state = {"last_boxes": [], "running": True}
+            
+            def ai_worker():
+                local_db = SessionLocal()
+                try:
+                    while shared_state["running"]:
+                        try:
+                            frame_to_process = frame_queue.get(timeout=1.0)
+                        except queue.Empty:
+                            continue
+                            
+                        small_frame = cv2.resize(frame_to_process, (1280, 720))
+                        detections = detector.detect_vehicles(small_frame, confidence_threshold=0.4)
+
+                        current_boxes = []
+                        recent_live_dets = []
+
+                        for det in detections:
+                            bbox = det["bbox"]
+                            v_class = det["class"]
+
+                            plate_region = detector.detect_plates(small_frame, bbox)
+                            plate_text = ""
+                            if plate_region:
+                                ocr_res = ocr.recognize_plate(small_frame, plate_region["bbox"])
+                                if ocr_res and ocr_res.get("normalized_text"):
+                                    plate_text = ocr_res.get("normalized_text")
+                                    if "MOCKPLATE" in plate_text:
+                                        plate_text = ""
+
+                            color = detector.detect_color(small_frame, bbox)
+                            status = "UNVERIFIED"
+                            
+                            if plate_text:
+                                # Check RTO Database
+                                rto_record = local_db.query(RegisteredVehicle).filter(RegisteredVehicle.plate_number == plate_text).first()
+                                if rto_record:
+                                    if rto_record.vehicle_class.lower() == v_class.lower():
+                                        status = "VERIFIED"
+                                    else:
+                                        status = "MISMATCH"
+                                else:
+                                    status = "NOT_FOUND"
+
+                                cloud_url = f"s3://traffic-evidence-bucket/{camera_id}_{plate_text}_{int(time.time())}.jpg"
+
+                                det_info = {
+                                    "id": f"{plate_text}_{int(time.time())}",
+                                    "plate_number": plate_text,
+                                    "vehicle_class": v_class,
+                                    "vehicle_color": color,
+                                    "confidence": round(det["confidence"] * 100, 1),
+                                    "verification_status": status,
+                                    "detected_at": datetime.utcnow().isoformat() + "Z",
+                                    "evidence_url": cloud_url
+                                }
+                                recent_live_dets.append(det_info)
+
+                            current_boxes.append((bbox, v_class, plate_text, det["confidence"], status, color))
+
+                        shared_state["last_boxes"] = current_boxes
+                        if recent_live_dets:
+                            LIVE_DETECTIONS[camera_id] = (recent_live_dets + LIVE_DETECTIONS.get(camera_id, []))[:10]
+                except Exception as e:
+                    logger.error(f"AI Worker error: {e}")
+                finally:
+                    local_db.close()
+
+            ai_thread = threading.Thread(target=ai_worker)
+            ai_thread.daemon = True
+            ai_thread.start()
+
+            frame_count = 0
+            try:
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        if is_live_stream:
+                            # Attempt to reconnect to live stream
+                            time.sleep(1)
+                            cap = cv2.VideoCapture(video_path)
+                            continue
+                        else:
+                            # Loop offline video
+                            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            continue
+
+                    frame_count += 1
+
+                    # Send to AI periodically
+                    if frame_count % 5 == 0:
+                        try:
+                            frame_queue.put_nowait(frame.copy())
+                        except queue.Full:
+                            pass # Skip if AI is still processing previous frame
+
+                    # Draw detections using latest available AI results
+                    last_boxes = shared_state["last_boxes"]
+                    for bbox, v_class, p_text, conf, status, color in last_boxes:
+                        x1, y1, x2, y2 = map(int, bbox)
+                        box_color = (0, 255, 0) # Green for all vehicles
+
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+                        label = f"{v_class} {color}"
+                        if p_text:
+                            label += f" | {p_text}"
+                        cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
+
+                    ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+                    frame_bytes = buffer.tobytes()
+
+                    yield (b'--frame\r\n'
+                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+                    # Control frame rate for offline videos
+                    if not is_live_stream:
+                        time.sleep(0.033) # ~30 FPS
+            finally:
+                shared_state["running"] = False
+                ai_thread.join(timeout=2.0)
+                cap.release()
+        finally:
+            db.close()
             
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 

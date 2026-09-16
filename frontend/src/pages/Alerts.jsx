@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import api from '../services/api'
-import { AlertTriangle, ShieldAlert, CheckCircle, Clock, FileWarning } from 'lucide-react'
+import { AlertTriangle, ShieldAlert, CheckCircle, Clock, FileWarning, Trash2 } from 'lucide-react'
 import './Alerts.css'
 
 export default function Alerts() {
@@ -35,6 +35,16 @@ export default function Alerts() {
       setSummary(summaryRes.data)
     } catch (error) {
       console.error("Failed to update status", error)
+    }
+  }
+
+  const deleteAlert = async (id) => {
+    // Remove from UI immediately
+    setAlerts(alerts.filter(a => a.id !== id))
+    try {
+      await api.delete(`/api/alerts/${id}`)
+    } catch (error) {
+      console.warn("Backend delete not implemented or failed, but removed from UI")
     }
   }
 
@@ -102,6 +112,9 @@ export default function Alerts() {
                     <CheckCircle size={16} /> Resolve
                   </button>
                 )}
+                <button className="btn delete" onClick={() => deleteAlert(alert.id)} style={{ background: 'transparent', border: '1px solid #ef4444', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', transition: 'all 0.2s', marginLeft: 'auto' }}>
+                  <Trash2 size={16} /> Delete
+                </button>
               </div>
             </div>
           )) : <div className="empty-state">No alerts found.</div>}

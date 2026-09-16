@@ -12,14 +12,20 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Create engine
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=settings.FASTAPI_DEBUG,
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    poolclass=NullPool if settings.FASTAPI_ENV == "testing" else None
-)
+engine_kwargs = {
+    "echo": settings.FASTAPI_DEBUG,
+    "pool_pre_ping": True,
+    "pool_size": 10,
+    "max_overflow": 20,
+    "poolclass": NullPool if settings.FASTAPI_ENV == "testing" else None
+}
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+    # SQLite does not support pool_size or max_overflow with default pool
+    engine_kwargs.pop("pool_size", None)
+    engine_kwargs.pop("max_overflow", None)
+
+engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
 
 # Session factory
 SessionLocal = sessionmaker(

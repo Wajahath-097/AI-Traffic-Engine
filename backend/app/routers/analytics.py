@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from app.database import get_db
 from app.models.models import VehicleDetection, Camera, CameraHealthEvent, Alert, AuditLog, Journey
-from app.core.dependencies import get_current_officer, get_current_user
+from app.core.dependencies import get_current_analyst, get_current_user
 from app.models.models import User
 from datetime import datetime, timedelta
 import logging
@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("/dashboard")
 async def get_dashboard_analytics(
     date_range: str = Query("24h", regex="^(24h|7d|30d|90d)$"),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -157,7 +157,7 @@ async def get_dashboard_analytics(
 async def get_detection_analytics(
     camera_id: str = Query(None),
     date_range: str = Query("24h", regex="^(24h|7d|30d|90d)$"),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -197,7 +197,7 @@ async def get_detection_analytics(
 @router.get("/ocr-accuracy")
 async def get_ocr_accuracy(
     camera_id: str = Query(None),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -242,7 +242,7 @@ async def get_ocr_accuracy(
 async def get_traffic_patterns(
     start_date: datetime = Query(...),
     end_date: datetime = Query(...),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -271,7 +271,7 @@ async def get_traffic_patterns(
 
 @router.get("/camera-performance")
 async def get_camera_performance(
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -309,7 +309,7 @@ async def get_camera_performance(
 @router.get("/heatmap")
 async def get_traffic_heatmap(
     date_range: str = Query("24h", regex="^(24h|7d|30d|90d)$"),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -336,7 +336,7 @@ async def get_traffic_heatmap(
 @router.get("/origin-destination")
 async def get_origin_destination_patterns(
     date_range: str = Query("24h", regex="^(24h|7d|30d|90d)$"),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """

@@ -8,7 +8,7 @@ from app.database import get_db
 from app.models.models import User, Role
 from app.schemas.schemas import LoginRequest, TokenResponse, UserCreate, UserResponse
 from app.core.security import hash_password, create_access_token
-from app.core.dependencies import get_current_user, get_current_admin
+from app.core.dependencies import get_current_user, get_current_super_admin
 from datetime import timedelta
 import logging
 
@@ -117,7 +117,7 @@ async def logout(
 @router.post("/register", response_model=UserResponse)
 async def register(
     user_create: UserCreate,
-    current_admin: User = Depends(get_current_admin),
+    current_admin: User = Depends(get_current_super_admin),
     db: Session = Depends(get_db)
 ):
     """

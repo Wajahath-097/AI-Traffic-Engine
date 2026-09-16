@@ -2,66 +2,38 @@
 
 ## Prerequisites
 
-- Docker & Docker Compose (recommended)
 - Python 3.9+ (for local development)
 - Node.js 18+ (for local frontend development)
-- PostgreSQL 13+ (if running without Docker)
+- PostgreSQL 13+ (or SQLite)
 
-## Setup Options
+## Setup
 
-### Option 1: Docker Compose (Recommended for Development)
+## Quick Start (The Easy Way)
 
-```bash
-# Navigate to project root
-cd "ai trafic engine"
-
-# Copy environment file
-cp .env.example .env
-
-# Start all services
-docker-compose up
-
-# Frontend: http://localhost:5173
-# Backend API: http://localhost:8000
-# API Docs: http://localhost:8000/docs
-# Nginx: http://localhost:80
-```
-
-### Option 2: Local Development (Backend + Frontend Separate)
-
-#### Backend Setup
+### Step 1: Start the Python Backend
+Open a terminal, go to the backend folder, and run the server:
 ```bash
 cd backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set environment variables
-cp ../.env.example ../.env
-# Edit .env with your settings
-
-# Run migrations (first time)
-# Database must be ready
-python -m alembic upgrade head
-
-# Start development server
+.\venv\Scripts\Activate.ps1
 python run.py
 ```
+*(The backend will run on http://localhost:8000)*
 
-#### Frontend Setup
+### Step 2: Start the Node.js Frontend
+Open a **new** terminal, go to the frontend folder, and start the UI:
 ```bash
 cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
 npm run dev
 ```
+*(The frontend will run on http://localhost:5173)*
+
+### Step 3: Access the App!
+Click here to open the application: [http://localhost:5173/login](http://localhost:5173/login)
+
+---
+*Note: The frontend is entirely powered by Node.js, and the backend is powered by Python/FastAPI. All Node.js dependencies are contained cleanly within the `frontend/node_modules` folder.*
+
+
 
 ## Project Structure
 
@@ -106,16 +78,10 @@ traffic-ai-engine/
 │   ├── migrations/          # SQL migration scripts
 │   └── seed/                # Database seed data
 │
-├── docker/                   # Docker configurations
-│   ├── Dockerfile.backend
-│   ├── Dockerfile.frontend
-│   └── nginx.conf
-│
 ├── docs/                     # Documentation
 │   ├── PRD_Traffic_AI_Engine.md
 │   └── TRD_Traffic_AI_Engine.md
 │
-├── docker-compose.yml       # Docker Compose configuration
 ├── .env.example             # Environment variables template
 ├── .gitignore               # Git ignore rules
 └── README.md                # Project overview
@@ -249,9 +215,24 @@ npm test
 
 ### Local Deployment
 ```bash
-docker-compose up -d
-# Access at http://localhost
+# Start backend in one terminal
+cd backend
+.\venv\Scripts\Activate.ps1
+python run.py
+
+# Start frontend in another terminal
+cd frontend
+npm run dev
 ```
+
+### Accessing the Application
+
+Once both servers are running, you can access the application using the following links:
+
+- **Frontend Application (Login):** [http://localhost:5173/login](http://localhost:5173/login)
+- **Backend API Base URL:** [http://localhost:8000](http://localhost:8000)
+- **API Documentation (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **API Documentation (ReDoc):** [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
 ### Production Deployment
 1. Use production database (managed PostgreSQL)
@@ -266,21 +247,13 @@ docker-compose up -d
 
 ### Database Connection Issues
 ```bash
-# Check PostgreSQL is running
-docker-compose ps postgres
-
-# View logs
-docker-compose logs postgres
-
-# Reset database
-docker-compose down -v  # WARNING: Deletes all data
-docker-compose up -d
+# Ensure PostgreSQL is running on your system
+# Or ensure SQLite database file exists in backend folder
 ```
 
 ### Backend API Not Responding
 ```bash
-# Check backend logs
-docker-compose logs backend
+# Check backend console output for errors
 
 # Check if port 8000 is in use
 netstat -an | grep 8000

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiGet } from '../services/api';
 import './FindVehicle.css';
 import { Search, Filter, RefreshCw, Car } from 'lucide-react';
 
 export default function FindVehicle() {
+  const [searchParams] = useSearchParams();
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
 
   const fetchVehicles = async () => {
     try {
@@ -27,7 +29,7 @@ export default function FindVehicle() {
       const mockVehicles = [
         {
           id: 1,
-          plate_number: 'MH 01 AB 1234',
+          plate_number: 'MH01AB1234',
           vehicle_class: 'Car',
           vehicle_color: 'Red',
           camera_camera_id: 'CAM-001',
@@ -46,11 +48,18 @@ export default function FindVehicle() {
     fetchVehicles();
   }, []);
 
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null) {
+      setSearchTerm(q);
+    }
+  }, [searchParams]);
+
   const filteredVehicles = vehicles.filter(v => {
     if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
+    const term = searchTerm.toLowerCase().replace(/\s+/g, '');
     return (
-      (v.plate_number && v.plate_number.toLowerCase().includes(term)) ||
+      (v.plate_number && v.plate_number.toLowerCase().replace(/\s+/g, '').includes(term)) ||
       (v.vehicle_class && v.vehicle_class.toLowerCase().includes(term)) ||
       (v.vehicle_color && v.vehicle_color.toLowerCase().includes(term)) ||
       (v.vehicle_model && v.vehicle_model.toLowerCase().includes(term))

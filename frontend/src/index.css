@@ -1,17 +1,18 @@
 :root {
-  --color-primary: #93bdeb;
-  --color-primary-dark: #93bdeb;
-  --color-success: #1e7e34;
-  --color-danger: #c8102e;
-  --color-warning: #ffc72c;
-  --color-info: #17a2b8;
-  --color-dark: #121c2d;
-  --color-light: #f4f6f8;
-  --color-border: #d1d5db;
-  --color-text: #1a1a1a;
-  --color-text-light: #4b5563;
-  --color-bg: #f4f6f8;
-  --color-surface: #ffffff;
+  --color-primary: #3b82f6; /* Blue for branding */
+  --color-primary-dark: #2563eb;
+  --color-accent: #8b5cf6; /* Purple for active states */
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #06b6d4;
+  --color-dark: #0f172a;
+  --color-light: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-text-light: #64748b;
+  --color-bg: #f1f5f9; /* Very light gray/blue background */
+  --color-surface: #ffffff; /* Pure white cards */
 }
 
 body.dark-mode {

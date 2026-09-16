@@ -16,10 +16,13 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+    if (error.response && error.response.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.location.href = '/login';
+    } else if (error.response && error.response.status === 403) {
+      // Just log or show a toast if you have a global toast system.
+      console.warn("Access denied: 403 Forbidden");
     }
     return Promise.reject(error);
   }

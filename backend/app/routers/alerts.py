@@ -8,7 +8,7 @@ from sqlalchemy import desc
 from app.database import get_db
 from app.models.models import Alert, VehicleDetection, Camera, AuditLog, BlacklistEntry
 from app.schemas.schemas import AlertCreate, AlertResponse, AlertUpdate
-from app.core.dependencies import get_current_officer, get_current_admin, get_current_user
+from app.core.dependencies import get_current_control_room, get_current_super_admin, get_current_user
 from app.models.models import User
 from typing import List
 from datetime import datetime, timedelta
@@ -24,7 +24,7 @@ async def list_alerts(
     severity: str = Query(None, regex="^(critical|high|medium|low)$"),
     status_filter: str = Query(None, regex="^(open|investigating|resolved|dismissed)$"),
     limit: int = Query(100, le=1000),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -46,7 +46,7 @@ async def list_alerts(
 @router.get("/{alert_id}", response_model=AlertResponse)
 async def get_alert(
     alert_id: str,
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -85,7 +85,7 @@ async def get_alert(
 async def update_alert_status(
     alert_id: str,
     new_status: str = Query(..., regex="^(open|investigating|resolved|dismissed)$"),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -137,7 +137,7 @@ async def update_alert_status(
 async def investigate_alert(
     alert_id: str,
     notes: str = Query(None),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """
@@ -184,7 +184,7 @@ async def investigate_alert(
 
 @router.get("/stats/summary")
 async def get_alert_summary(
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_control_room),
     db: Session = Depends(get_db)
 ):
     """

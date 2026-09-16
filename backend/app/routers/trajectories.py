@@ -8,7 +8,7 @@ from sqlalchemy import desc
 from app.database import get_db
 from app.models.models import Journey, JourneyEvent, VehicleDetection, Camera, AuditLog
 from app.schemas.schemas import JourneyResponse, JourneyEventResponse
-from app.core.dependencies import get_current_officer, get_current_user
+from app.core.dependencies import get_current_traffic_officer, get_current_user
 from app.models.models import User
 from typing import List
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ router = APIRouter()
 @router.get("/", response_model=List[JourneyResponse])
 async def list_trajectories(
     limit: int = Query(50, le=1000),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """
@@ -40,7 +40,7 @@ async def list_trajectories(
 @router.get("/{trajectory_id}", response_model=JourneyResponse)
 async def get_trajectory(
     trajectory_id: str,
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """
@@ -78,7 +78,7 @@ async def get_trajectory(
 @router.post("/reconstruct")
 async def reconstruct_trajectory(
     plate: str = Query(..., min_length=1),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """
@@ -166,7 +166,7 @@ async def reconstruct_trajectory(
 @router.get("/{trajectory_id}/map-data")
 async def get_trajectory_map_data(
     trajectory_id: str,
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """

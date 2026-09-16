@@ -1,8 +1,19 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const printLoginUrlPlugin = () => ({
+  name: 'print-login-url',
+  configureServer(server) {
+    server.httpServer?.once('listening', () => {
+      setTimeout(() => {
+        console.log('\n  👉 Login Page URL: \x1b[36mhttp://localhost:5173/login\x1b[0m\n')
+      }, 100)
+    })
+  }
+})
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), printLoginUrlPlugin()],
   server: {
     port: 5173,
     host: '0.0.0.0',

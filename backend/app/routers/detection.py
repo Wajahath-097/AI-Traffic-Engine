@@ -8,7 +8,7 @@ from sqlalchemy import desc, and_
 from app.database import get_db
 from app.models.models import VehicleDetection, Camera, AuditLog
 from app.schemas.schemas import VehicleDetectionCreate, VehicleDetectionResponse
-from app.core.dependencies import get_current_officer, get_current_user
+from app.core.dependencies import get_current_analyst, get_current_user
 from app.models.models import User
 from typing import List
 from datetime import datetime, timedelta
@@ -24,7 +24,7 @@ async def get_detections(
     camera_id: str = Query(None),
     limit: int = Query(100, le=1000),
     offset: int = Query(0, ge=0),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -49,7 +49,7 @@ async def get_detections(
 @router.get("/detections/{detection_id}", response_model=VehicleDetectionResponse)
 async def get_detection(
     detection_id: str,
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """
@@ -127,7 +127,7 @@ async def create_detection(
 @router.get("/confidence-stats")
 async def get_confidence_stats(
     hours: int = Query(24, le=720),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_analyst),
     db: Session = Depends(get_db)
 ):
     """

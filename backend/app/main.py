@@ -39,9 +39,11 @@ async def lifespan(app: FastAPI):
             role_count = db.query(Role).count()
             if role_count == 0:
                 default_roles = [
-                    Role(name="officer", description="Traffic Officer - Can view and search"),
-                    Role(name="analyst", description="Data Analyst - Can analyze and view"),
-                    Role(name="administrator", description="System Administrator - Full access")
+                    Role(name="Super Admin", description="Full system administration"),
+                    Role(name="Traffic Officer", description="Assigned cameras + vehicle searches"),
+                    Role(name="Control Room", description="Live feeds + alerts"),
+                    Role(name="Analyst", description="Reports/statistics"),
+                    Role(name="Auditor", description="Logs only")
                 ]
                 for role in default_roles:
                     db.add(role)

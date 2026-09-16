@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { apiGet } from '../services/api'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, BarChart, Bar } from 'recharts'
-import { Activity, Camera, AlertTriangle, ShieldCheck, Zap, Crosshair, Cloud, Server, Activity as Heartbeat } from 'lucide-react'
-import { GoogleMap, Circle, TrafficLayer, HeatmapLayer, useJsApiLoader } from '@react-google-maps/api'
+import { Activity, Camera, AlertTriangle, Cloud, Server, Zap, ChevronRight, Car, Info, XCircle, Map as MapIcon } from 'lucide-react'
+import { GoogleMap, TrafficLayer, HeatmapLayer, useJsApiLoader } from '@react-google-maps/api'
+import skylineImg from '../assets/skyline.jpg'
 import './Dashboard.css'
 
 const libraries = ['visualization'];
@@ -27,19 +29,19 @@ export default function Dashboard() {
   // Mock live ticker data with realistic presentation data
   useEffect(() => {
     const realisticDetections = [
-      { plate: 'MH 02 FH 9304', desc: 'Black Mercedes Benz', camera: 'CAM-001 (Intersection 1)' },
+      { plate: 'MH02FU9304', desc: 'Black Mercedes Benz', camera: 'CAM-001 (Intersection 1)' },
       { plate: 'TS 09 EU 1234', desc: 'Yellow Auto Rickshaw', camera: 'CAM-001 (Intersection 1)' },
       { plate: 'TS 08 AB 1234', desc: 'White Maruti Swift', camera: 'CAM-002 (Intersection 2)' },
       { plate: 'TS 07 EZ 8888', desc: 'Red Honda Activa', camera: 'CAM-002 (Intersection 2)' },
       { plate: 'TS 10 MN 4567', desc: 'Blue Hyundai i20', camera: 'CAM-003 (Intersection 3)' },
       { plate: 'AP 29 XX 9999', desc: 'Silver Toyota Innova', camera: 'CAM-001 (Intersection 1)' }
     ];
-    
+
     let tickerIndex = 0;
-    
+
     const interval = setInterval(() => {
       const data = realisticDetections[tickerIndex % realisticDetections.length];
-      
+
       const newDetection = {
         id: Date.now(),
         camera: data.camera,
@@ -47,11 +49,11 @@ export default function Dashboard() {
         desc: data.desc,
         time: new Date().toLocaleTimeString()
       };
-      
+
       setRecentTicker(prev => [newDetection, ...prev].slice(0, 5));
       tickerIndex++;
     }, 2500);
-    
+
     return () => clearInterval(interval);
   }, []);
 
@@ -67,14 +69,14 @@ export default function Dashboard() {
           apiGet('/api/analytics/ocr-accuracy').catch(() => null),
           apiGet('/api/analytics/detections').catch(() => null)
         ]);
-        
+
         if (isMounted) {
           setData(dashRes.data);
-          
+
           if (Array.isArray(heatRes.data)) {
             setRawHeatmap(heatRes.data);
           }
-          
+
           if (camRes?.data) {
             const onlineCount = camRes.data.filter(c => c.status === 'online').length;
             setOnlineCameras(onlineCount);
@@ -94,12 +96,12 @@ export default function Dashboard() {
         }
       }
     }
-    
+
     fetchDashboard()
     // Poll every 5 seconds for continuous live updates
     intervalId = setInterval(fetchDashboard, 5000);
-    
-    return () => { 
+
+    return () => {
       isMounted = false;
       if (intervalId) clearInterval(intervalId);
     }
@@ -122,6 +124,7 @@ export default function Dashboard() {
   const totalDetections = data?.total_5m ?? 0
   const openAlerts = data?.alert_summary?.by_status?.open ?? 0
   const activeCameras = onlineCameras
+  const totalCameras = 6;
 
   const vehicleClassData = detectionStats && detectionStats.vehicle_classes ? [
     { name: 'Cars', value: detectionStats.vehicle_classes.car ?? 0 },
@@ -145,177 +148,194 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-v2">
-      <div className="hero-banner">
+      <div className="hero-banner" style={{ backgroundImage: `url(${skylineImg})` }}>
         <div className="hero-content">
-          <h1>Centralized Traffic Analytics</h1>
-          <p>Real-time AI surveillance network overview across Telangana State</p>
+          <h1>Good Afternoon, Admin</h1>
+          <p>Here's what's happening on the roads today.</p>
         </div>
       </div>
 
-      <div className="live-ticker glass-panel">
-        <div className="ticker-label"><Heartbeat size={16} color="#ef4444" /> LIVE DETECTIONS</div>
-        <div className="ticker-content">
-          {recentTicker.map((t, idx) => (
-            <span key={t.id} className="ticker-item" style={{ opacity: 1 - (idx * 0.2) }}>
-              <strong style={{ color: '#fbbf24' }}>[{t.plate}]</strong> {t.desc} @ {t.camera} ({t.time})
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="dashboard-main-content" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-        <div className="center-panels" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          
-          {/* Stats Cards Row - aligned to full map width */}
-          <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            <div className="stat-card glass-panel">
-              <div className="stat-icon-wrapper blue"><Activity size={24} /></div>
+      <div className="dashboard-main-content">
+        <div className="center-panels">
+          {/* Stats Cards Row */}
+          <div className="stats-grid">
+            <Link to="/cameras" className="stat-card glass-panel" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="stat-icon-wrapper purple"><Camera size={22} /></div>
               <div className="stat-info">
-                <p>Detections (5 min)</p>
-                <h3>{totalDetections.toLocaleString()}</h3>
+                <p>Total Cameras</p>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>{totalCameras} <span style={{ fontSize: '10px', color: '#10b981', fontWeight: '600' }}>● Online: {activeCameras}</span> <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: '600' }}>● Offline: {totalCameras - activeCameras}</span></h3>
               </div>
-            </div>
+            </Link>
             <div className="stat-card glass-panel">
-              <div className="stat-icon-wrapper green"><Camera size={24} /></div>
+              <div className="stat-icon-wrapper green"><Car size={22} /></div>
               <div className="stat-info">
-                <p>Active Cameras</p>
-                <h3>{activeCameras}</h3>
+                <p>Active Vehicles (Today)</p>
+                <h3>2,84,732</h3>
               </div>
+              <div style={{ marginLeft: 'auto', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>↑ 12.4%</div>
             </div>
-            <div className="stat-card glass-panel">
-              <div className="stat-icon-wrapper red"><AlertTriangle size={24} /></div>
+            <Link to="/analytics" className="stat-card glass-panel" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="stat-icon-wrapper blue"><Activity size={22} /></div>
               <div className="stat-info">
-                <p>Critical Alerts</p>
+                <p>ANPR Matches</p>
+                <h3>1,243</h3>
+              </div>
+              <div style={{ marginLeft: 'auto', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>↑ 18.7%</div>
+            </Link>
+            <Link to="/alerts" className="stat-card glass-panel" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="stat-icon-wrapper red"><AlertTriangle size={22} /></div>
+              <div className="stat-info">
+                <p>Active Alerts</p>
                 <h3>{openAlerts}</h3>
               </div>
-            </div>
+              <div style={{ marginLeft: 'auto', color: '#ef4444', fontSize: '12px', fontWeight: '700' }}>↑ 75%</div>
+            </Link>
           </div>
 
-          {/* Heatmap - full width of left column */}
-          <div className="map-panel glass-panel" style={{ padding: 0, overflow: 'hidden', flex: 1, minHeight: '380px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 1000, background: 'var(--color-surface)', padding: '6px 12px', borderRadius: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ margin: 0, fontSize: '13px', fontWeight: '700', color: 'var(--color-text)' }}>Live Congestion Heatmap</h3>
+          {/* Map - fills rest of left column */}
+          <div className="map-panel glass-panel">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', borderBottom: '1px solid #e2e8f0', background: 'white', zIndex: 10 }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapIcon size={18} /> Live Traffic Map – Hyderabad
+              </h3>
+              <div style={{ display: 'flex', gap: '16px', fontSize: '12px', fontWeight: '600', color: '#64748b' }}>
+                <span style={{ color: '#10b981' }}>● Live Traffic</span>
+                <span style={{ color: '#3b82f6' }}>● Cameras</span>
+              </div>
             </div>
-            {isLoaded && window.google ? (
-              <GoogleMap
-                mapContainerStyle={{ width: '100%', height: '100%' }}
-                center={{ lat: 17.4399, lng: 78.4983 }}
-                zoom={11}
-                options={{
-                  disableDefaultUI: true,
-                  zoomControl: false,
-                }}
-              >
-                <TrafficLayer />
-                {heatmapData.length > 0 && (
-                  <HeatmapLayer
-                    data={heatmapData.map(pt => ({
-                      location: new window.google.maps.LatLng(parseFloat(pt.lat), parseFloat(pt.lng)),
-                      weight: pt.weight
-                    }))}
-                    options={{
-                      radius: 30,
-                      opacity: 0.75,
-                      maxIntensity: Math.max(...heatmapData.map(d => d.weight)) || 10
-                    }}
-                  />
-                )}
-                {heatmapData.length === 0 && (
-                  <HeatmapLayer
-                    data={[
-                      { location: new window.google.maps.LatLng(17.4399, 78.4983), weight: 10 },
-                      { location: new window.google.maps.LatLng(17.4239, 78.4534), weight: 8 },
-                      { location: new window.google.maps.LatLng(17.4947, 78.3996), weight: 6 },
-                      { location: new window.google.maps.LatLng(17.3616, 78.4747), weight: 9 },
-                      { location: new window.google.maps.LatLng(17.4500, 78.3800), weight: 5 },
-                    ]}
-                    options={{ radius: 30, opacity: 0.7, maxIntensity: 10 }}
-                  />
-                )}
-              </GoogleMap>
-            ) : (
-              <div style={{ padding: '20px' }}>Loading Map...</div>
-            )}
+            <div style={{ flex: 1, position: 'relative' }}>
+              {isLoaded && window.google ? (
+                <GoogleMap
+                  mapContainerStyle={{ width: '100%', height: '100%' }}
+                  center={{ lat: 17.4399, lng: 78.4983 }}
+                  zoom={12}
+                  options={{
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                  }}
+                >
+                  <TrafficLayer />
+                  {heatmapData.length > 0 && (
+                    <HeatmapLayer
+                      data={heatmapData.map(pt => ({
+                        location: new window.google.maps.LatLng(parseFloat(pt.lat), parseFloat(pt.lng)),
+                        weight: pt.weight
+                      }))}
+                      options={{ radius: 30, opacity: 0.75, maxIntensity: 10 }}
+                    />
+                  )}
+                </GoogleMap>
+              ) : (
+                <div style={{ padding: '20px' }}>Loading Map...</div>
+              )}
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div className="chart-panel glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '14px', marginBottom: '8px', color: 'var(--color-text-light)' }}>Traffic Volume Trend (24h)</h3>
-            <div className="chart-container" style={{ flex: 1, minHeight: '350px' }}>
+        <div className="right-panels">
+          <div className="chart-panel glass-panel">
+            <h3>Traffic Volume (Last 24 Hours)</h3>
+            <div className="chart-container">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data?.detections_by_hour || []}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(150,150,150,0.2)" />
-                  <XAxis dataKey="hour" tickFormatter={(val) => val.split(' ')[1]} stroke="var(--color-text-light)" />
-                  <YAxis stroke="var(--color-text-light)" />
-                  <RechartsTooltip 
-                    contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text)', borderRadius: '8px' }}
-                  />
-                  <Line type="monotone" dataKey="count" stroke="var(--color-primary)" strokeWidth={4} dot={false} activeDot={{ r: 8 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="panel glass-panel">
-            <h3>Vehicle Demographics</h3>
-            <div style={{ height: '140px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={vehicleClassData}
-                    innerRadius={50}
-                    outerRadius={70}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {vehicleClassData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="panel glass-panel">
-            <h3>Traffic Volume by Zone</h3>
-            <div style={{ height: '140px', marginTop: '16px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={zoneData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(150,150,150,0.1)" />
-                  <XAxis dataKey="name" stroke="var(--color-text-light)" fontSize={12} />
-                  <YAxis stroke="var(--color-text-light)" fontSize={12} />
-                  <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', borderRadius: '8px' }} />
-                  <Bar dataKey="volume" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                <BarChart data={data?.detections_by_hour || []}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="hour" tickFormatter={(val) => val.split(' ')[1]} stroke="#64748b" fontSize={10} />
+                  <YAxis stroke="#64748b" fontSize={10} />
+                  <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                  <Bar dataKey="count" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="panel glass-panel system-status-widget">
+          <div className="panel glass-panel">
+            <h3>Vehicle Breakdown (Today)</h3>
+            <div style={{ display: 'flex', height: '140px', alignItems: 'center' }}>
+              <div style={{ flex: 1, height: '100%' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={vehicleClassData}
+                      innerRadius={45}
+                      outerRadius={65}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {vehicleClassData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', fontWeight: '600', color: '#64748b' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[0] }}>● Two Wheelers</span> <span>62.3%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[1] }}>● Cars</span> <span>28.7%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[2] }}>● Auto Rickshaws</span> <span>4.8%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[3] }}>● Buses/Trucks</span> <span>4.2%</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel glass-panel">
             <h3>Environment &amp; Status</h3>
-            <div className="status-item">
-              <Cloud size={20} color="#3b82f6" />
-              <div>
-                <strong>Weather Conditions</strong>
-                <span>Clear • Visibility: 12km</span>
+            <div className="system-status-widget">
+              <div className="status-item">
+                <Cloud size={18} color="#3b82f6" />
+                <strong>Weather 28°C</strong>
+                <span>Partly Cloudy</span>
+              </div>
+              <div className="status-item">
+                <Activity size={18} color="#8b5cf6" />
+                <strong>Air Quality Good</strong>
+                <span>AQI 42</span>
+              </div>
+              <div className="status-item">
+                <Server size={18} color="#10b981" />
+                <strong>Network Online</strong>
+                <span>All Systems</span>
               </div>
             </div>
-            <div className="status-item">
-              <Server size={20} color="#10b981" />
-              <div>
-                <strong>Edge Node Clusters</strong>
-                <span>4/4 Online • Sync: OK</span>
-              </div>
+          </div>
+
+          <div className="panel glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '180px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0 }}>Recent Alerts</h3>
+              <a href="/alerts" style={{ fontSize: '11px', color: '#3b82f6', fontWeight: '600' }}>View All</a>
             </div>
-            <div className="status-item">
-              <Zap size={20} color="#f59e0b" />
-              <div>
-                <strong>Processing Power</strong>
-                <span>NVIDIA T4 active • Load: 64%</span>
+            <div className="alerts-list" style={{ overflowY: 'auto', flex: 1 }}>
+              <div className="alert-item">
+                <div className="alert-item-icon high"><AlertTriangle size={14} /></div>
+                <div className="alert-item-content">
+                  <h4>High Traffic Density</h4>
+                  <p>NH 44 - Hitech City Flyover</p>
+                </div>
+                <div className="alert-item-time">16:28</div>
+              </div>
+              <div className="alert-item">
+                <div className="alert-item-icon medium"><AlertTriangle size={14} /></div>
+                <div className="alert-item-content">
+                  <h4>Wrong Way Vehicle</h4>
+                  <p>CAM-023 - Jubilee Hills</p>
+                </div>
+                <div className="alert-item-time">16:19</div>
+              </div>
+              <div className="alert-item">
+                <div className="alert-item-icon info"><Info size={14} /></div>
+                <div className="alert-item-content">
+                  <h4>ANPR Match Found</h4>
+                  <p>TS09AB1234 - CAM-017</p>
+                </div>
+                <div className="alert-item-time">16:12</div>
+              </div>
+              <div className="alert-item">
+                <div className="alert-item-icon high"><XCircle size={14} /></div>
+                <div className="alert-item-content">
+                  <h4>Accident Detected</h4>
+                  <p>NH 65 - LB Nagar</p>
+                </div>
+                <div className="alert-item-time">15:58</div>
               </div>
             </div>
           </div>

@@ -41,7 +41,7 @@ def seed_mock_data():
         # Generate Indian Number Plates exclusively from Telangana (TS)
         states = ["MH"]
         letters = ["AA", "AB", "CA", "XY", "ZZ", "MK", "TR", "EU", "ES"]
-        plates = [f"{random.choice(states)} {random.randint(10,99)} {random.choice(letters)} {random.randint(1000,9999)}" for _ in range(200)]
+        plates = [f"{random.choice(states)}{random.randint(10,99)}{random.choice(letters)}{random.randint(1000,9999)}" for _ in range(200)]
         detections = []
         now = datetime.utcnow()
         seen_plates = set()
@@ -85,11 +85,19 @@ def seed_mock_data():
         
         # Create Alerts
         print("Creating alerts...")
+        alert_reasons = [
+            "Stolen vehicle detected",
+            "Pending challans vehicle detected",
+            "Suspicious loitering identified",
+            "Over-speeding vehicle captured",
+            "Red light jump detected",
+            "Unauthorized vehicle in restricted lane"
+        ]
         for i in range(10):
             plate = random.choice(plates)
             alert_type = "anomaly"
-            severity = "medium"
-            msg = f"Suspicious activity detected at {random.choice(cameras).name}"
+            severity = random.choice(["high", "medium", "critical"])
+            msg = f"{random.choice(alert_reasons)} at {random.choice(cameras).name}"
             
             # Create a single alert for the detection
             alert = Alert(

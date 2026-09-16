@@ -8,7 +8,7 @@ from sqlalchemy import desc, or_, and_
 from app.database import get_db
 from app.models.models import VehicleDetection, Camera, AuditLog
 from app.schemas.schemas import VehicleDetectionResponse
-from app.core.dependencies import get_current_officer, get_current_user
+from app.core.dependencies import get_current_traffic_officer, get_current_user
 from app.models.models import User
 from typing import List
 from datetime import datetime
@@ -26,7 +26,7 @@ async def search_vehicles(
     start_date: datetime = Query(None),
     end_date: datetime = Query(None),
     limit: int = Query(100, le=1000),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """
@@ -101,7 +101,7 @@ async def search_vehicles(
 @router.get("/vehicles/{detection_id}/history")
 async def get_vehicle_history(
     detection_id: str,
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """
@@ -167,7 +167,7 @@ async def get_vehicle_history(
 async def flag_vehicle(
     detection_id: str,
     reason: str = Query(None),
-    current_user: User = Depends(get_current_officer),
+    current_user: User = Depends(get_current_traffic_officer),
     db: Session = Depends(get_db)
 ):
     """

@@ -9,6 +9,7 @@ from app.database import get_db
 from app.core.security import verify_token
 from app.models.models import User
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,15 @@ async def get_current_user(
         )
     
     # Get user from database
-    user = db.query(User).filter(User.id == token_data.user_id).first()
+    try:
+        user_uuid = uuid.UUID(token_data.user_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user ID format",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    user = db.query(User).filter(User.id == user_uuid).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -50,16 +59,48 @@ async def get_current_user(
     return user
 
 
-async def get_current_officer(
+async def get_current_super_admin(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """
-    Verify current user has 'officer' role or higher
+    Verify current user has 'Super Admin' role (Full system administration)
     """
-    if current_user.role and current_user.role.name not in ["officer", "analyst", "administrator"]:
+    if current_user.role is None or current_user.role.name != "Super Admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have officer privileges"
+            detail="User does not have Super Admin privileges"
+        )
+    return current_user
+
+
+async def get_current_traffic_officer(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Verify current user has 'Traffic Officer' role or higher
+    (Assigned cameras + vehicle searches)
+    """
+    allowed_roles = ["Traffic Officer", "Super Admin"]
+    if current_user.role is None or current_user.role.name not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have Traffic Officer privileges"
+        )
+    return current_user
+
+
+async def get_current_control_room(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """
+    Verify current user has 'Control Room' role or higher
+    (Live feeds + alerts)
+    """
+    allowed_roles = ["Control Room", "Super Admin"]
+    if current_user.role is None or current_user.role.name not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User does not have Control Room privileges"
         )
     return current_user
 
@@ -68,25 +109,29 @@ async def get_current_analyst(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """
-    Verify current user has 'analyst' role or higher
+    Verify current user has 'Analyst' role or higher
+    (Reports/statistics)
     """
-    if current_user.role and current_user.role.name not in ["analyst", "administrator"]:
+    allowed_roles = ["Analyst", "Super Admin"]
+    if current_user.role is None or current_user.role.name not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have analyst privileges"
+            detail="User does not have Analyst privileges"
         )
     return current_user
 
 
-async def get_current_admin(
+async def get_current_auditor(
     current_user: User = Depends(get_current_user)
 ) -> User:
     """
-    Verify current user has 'administrator' role
+    Verify current user has 'Auditor' role or higher
+    (Logs only)
     """
-    if current_user.role is None or current_user.role.name != "administrator":
+    allowed_roles = ["Auditor", "Super Admin"]
+    if current_user.role is None or current_user.role.name not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User does not have administrator privileges"
+            detail="User does not have Auditor privileges"
         )
     return current_user

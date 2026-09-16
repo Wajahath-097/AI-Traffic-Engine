@@ -231,7 +231,7 @@ class OCREngine:
         """
         if self.ocr is None:
             import random
-            states = ["TS", "AP", "MH", "KA", "DL"]
+            states = ["MH"]
             state = random.choice(states)
             district = f"{random.randint(1, 15):02d}"
             letters = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=2))

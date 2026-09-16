@@ -73,7 +73,7 @@ export default function Blacklist() {
         <form onSubmit={handleAdd} className="search-form" style={{ marginTop: '16px', gridTemplateColumns: '1fr 2fr 1fr auto' }}>
           <div className="form-group">
             <label>Plate Number</label>
-            <input type="text" placeholder="e.g. MH 12 AB 1234" value={newPlate} onChange={e => setNewPlate(e.target.value)} required />
+            <input type="text" placeholder="e.g. MH12AB1234" value={newPlate} onChange={e => setNewPlate(e.target.value)} required />
           </div>
           <div className="form-group">
             <label>Reason</label>
