@@ -24,21 +24,8 @@ export default function FindVehicle() {
       }
     } catch (err) {
       console.error('Error fetching vehicles:', err);
-      setError('Failed to fetch vehicle history. Showing mock data.');
-      // Fallback mock data
-      const mockVehicles = [
-        {
-          id: 1,
-          plate_number: 'MH01AB1234',
-          vehicle_class: 'Car',
-          vehicle_color: 'Red',
-          camera_camera_id: 'CAM-001',
-          camera_name: 'Intersection 1',
-          detected_at: new Date().toISOString(),
-          vehicle_confidence: 0.95
-        }
-      ];
-      setVehicles(mockVehicles);
+      setError('Failed to fetch vehicle history.');
+      setVehicles([]);
     } finally {
       setLoading(false);
     }

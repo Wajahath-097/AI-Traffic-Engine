@@ -16,7 +16,7 @@
   background: #f8fafc;
   border: 1px dashed #cbd5e1;
   border-radius: 12px;
-  color: #64748b;
+  color: var(--color-text-light);
   font-weight: 500;
 }
 
@@ -27,6 +27,6 @@
 }
 
 .map-popup strong {
-  color: #0f172a;
+  color: var(--color-text);
   font-size: 14px;
 }

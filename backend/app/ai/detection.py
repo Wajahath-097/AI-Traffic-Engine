@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class YOLODetector:
     """Vehicle detection using YOLOv8"""
     
-    def __init__(self, model_name: str = "yolov8m"):
+    def __init__(self, model_name: str = "yolov8n"):
         """Initialize YOLOv8 detector"""
         try:
             import torch
@@ -87,8 +87,7 @@ class YOLODetector:
         """
         Detect license plate region in vehicle area
         
-        For MVP, this is a simplified implementation
-        In production, use a dedicated license plate detection model
+        Uses heuristics (bottom half, center) to improve OCR accuracy.
         
         Args:
             frame: Input frame
@@ -104,32 +103,26 @@ class YOLODetector:
         x1, y1 = max(0, int(x1)), max(0, int(y1))
         x2, y2 = min(w, int(x2)), min(h, int(y2))
         
-        # Extract vehicle ROI
-        vehicle_roi = frame[y1:y2, x1:x2]
+        # Heuristic: plates are usually in the lower 50% and horizontally centered
+        v_h = y2 - y1
+        v_w = x2 - x1
         
-        if vehicle_roi.size == 0:
+        # Avoid zero size
+        if v_h < 10 or v_w < 10:
+            return None
+            
+        px1 = int(x1 + v_w * 0.1)
+        py1 = int(y1 + v_h * 0.5)
+        px2 = int(x2 - v_w * 0.1)
+        py2 = y2
+        
+        plate_roi = frame[py1:py2, px1:px2]
+        
+        if plate_roi.size == 0:
             return None
         
-        # Simplified plate detection: assume plate is in bottom-center of vehicle
-        roi_h, roi_w = vehicle_roi.shape[:2]
-        
-        # Plate is typically 1/4 of vehicle width and 1/8 height
-        plate_w = roi_w // 4
-        plate_h = roi_h // 8
-        
-        plate_x1 = (roi_w - plate_w) // 2
-        plate_y1 = roi_h - plate_h - 10
-        plate_x2 = plate_x1 + plate_w
-        plate_y2 = plate_y1 + plate_h
-        
-        # Convert to original frame coordinates
         return {
-            "bbox": [
-                x1 + plate_x1,
-                y1 + plate_y1,
-                x1 + plate_x2,
-                y1 + plate_y2
-            ]
+            "bbox": [px1, py1, px2, py2]
         }
 
     def detect_color(self, frame: np.ndarray, vehicle_bbox: Tuple[float, float, float, float]) -> str:
@@ -186,17 +179,6 @@ class YOLODetector:
                 
         return best_color
 
-    def detect_vehicle_model(self, vehicle_class: str) -> str:
-        """Mock detection of vehicle model based on class"""
-        import random
-        models = {
-            "car": ["Toyota Camry", "Honda Civic", "Hyundai Verna", "Maruti Swift", "Tata Nexon"],
-            "truck": ["Tata Prima", "Ashok Leyland", "Mahindra Blazo"],
-            "bus": ["Volvo B11R", "Tata Starbus", "Ashok Leyland Eagle"],
-            "motorcycle": ["Royal Enfield", "Hero Splendor", "Bajaj Pulsar", "Honda Activa"],
-            "bicycle": ["Hero Sprint", "Hercules", "Atlas"]
-        }
-        return random.choice(models.get(vehicle_class, ["Unknown Model"]))
 
 
 class OCREngine:
@@ -230,18 +212,10 @@ class OCREngine:
             OCR result with text and confidence
         """
         if self.ocr is None:
-            import random
-            states = ["MH"]
-            state = random.choice(states)
-            district = f"{random.randint(1, 15):02d}"
-            letters = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ", k=2))
-            numbers = f"{random.randint(1000, 9999)}"
-            mock_plate = f"{state}{district}{letters}{numbers}"
-            
             return {
-                "raw_text": mock_plate,
-                "normalized_text": mock_plate,
-                "confidence": round(random.uniform(0.91, 0.99), 2),
+                "raw_text": "",
+                "normalized_text": "",
+                "confidence": 0.0,
                 "engine": "paddleocr"
             }
         
@@ -394,7 +368,7 @@ _yolo_detector = None
 _ocr_engine = None
 
 
-def get_yolo_detector(model_name: str = "yolov8m"):
+def get_yolo_detector(model_name: str = "yolov8n"):
     """Get or create YOLO detector instance"""
     global _yolo_detector
     if _yolo_detector is None:

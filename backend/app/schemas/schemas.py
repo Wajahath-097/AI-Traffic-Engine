@@ -39,11 +39,20 @@ class UserCreate(UserBase):
         return v
 
 
+class RoleResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 class UserResponse(UserBase):
     id: UUID
     is_active: bool
     created_at: datetime
     last_login_at: Optional[datetime] = None
+    role: Optional[RoleResponse] = None
     
     class Config:
         from_attributes = True
@@ -320,11 +329,3 @@ class ErrorResponse(BaseModel):
 
 
 # ==================== Role Schemas ====================
-
-class RoleResponse(BaseModel):
-    id: UUID
-    name: str
-    description: Optional[str]
-    
-    class Config:
-        from_attributes = True

@@ -54,7 +54,7 @@
 
 .sidebar-header small {
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--color-text-light);
 }
 
 .nav-menu {
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 16px;
   padding: 12px 16px;
-  color: #94a3b8;
+  color: var(--color-text-light);
   font-weight: 500;
   font-size: 14px;
   border-radius: 8px;
@@ -101,7 +101,7 @@
 .logout-btn {
   width: 100%;
   background: transparent;
-  color: #94a3b8;
+  color: var(--color-text-light);
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -145,11 +145,11 @@
 
 .sidebar-toggle {
   background: transparent;
-  color: #64748b;
+  color: var(--color-text-light);
   padding: 4px;
   cursor: pointer;
 }
-.sidebar-toggle:hover { color: #1e293b; }
+.sidebar-toggle:hover { color: var(--color-text); }
 
 .top-bar-branding {
   display: flex;
@@ -169,14 +169,14 @@
 .app-title-block h1 {
   font-size: 18px;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--color-text);
   margin: 0;
   line-height: 1.2;
 }
 
 .app-title-block span {
   font-size: 11px;
-  color: #64748b;
+  color: var(--color-text-light);
   font-weight: 500;
 }
 
@@ -205,7 +205,7 @@
   box-shadow: none;
 }
 .search-icon {
-  color: #94a3b8;
+  color: var(--color-text-light);
 }
 
 .system-status {
@@ -226,19 +226,19 @@
   display: flex;
   flex-direction: column;
 }
-.status-text strong { font-size: 12px; color: #1e293b; }
-.status-text span { font-size: 10px; color: #64748b; }
+.status-text strong { font-size: 12px; color: var(--color-text); }
+.status-text span { font-size: 10px; color: var(--color-text-light); }
 
 .icon-btn {
   background: transparent;
-  color: #64748b;
+  color: var(--color-text-light);
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 4px;
 }
-.icon-btn:hover { color: #1e293b; }
+.icon-btn:hover { color: var(--color-text); }
 .badge-notification {
   position: absolute;
   top: -2px;
@@ -288,4 +288,46 @@
   }
   .sidebar[data-open="false"] { transform: translateX(-100%); }
   .global-search, .system-status { display: none; }
+}
+
+body.dark-mode .sidebar {
+  background: #1a1a1a;
+}
+
+body.dark-mode .page-content {
+  background: #1a1a1a;
+}
+
+body.dark-mode .app-title-block h1 {
+  color: #ffffff;
+}
+
+body.dark-mode .app-title-block span {
+  color: var(--color-text-light);
+}
+
+body.dark-mode .status-text strong {
+  color: var(--color-text);
+}
+
+body.dark-mode .global-search {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+body.dark-mode .global-search:focus-within {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+body.dark-mode .global-search input {
+  color: var(--color-text);
+}
+
+body.dark-mode .icon-btn:hover {
+  color: var(--color-text);
+}
+
+body.dark-mode .sidebar-toggle:hover {
+  color: var(--color-text);
 }

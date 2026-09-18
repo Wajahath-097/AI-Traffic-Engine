@@ -75,7 +75,7 @@
   display: block;
   font-size: 16px;
   font-weight: 400;
-  color: #94a3b8;
+  color: var(--color-text-light);
   margin-top: 4px;
 }
 
@@ -148,7 +148,7 @@
   border-radius: 24px;
   padding: 3.5rem 3rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-  color: #0f172a;
+  color: var(--color-text);
   transition: all 0.3s ease;
 }
 
@@ -167,12 +167,12 @@
   font-size: 28px;
   font-weight: 700;
   margin: 0 0 0.5rem 0;
-  color: #1e293b;
+  color: var(--color-text);
 }
 
 .login-card-header p {
   font-size: 15px;
-  color: #64748b;
+  color: var(--color-text-light);
   margin: 0;
 }
 
@@ -193,7 +193,7 @@
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #475569;
+  color: var(--color-text);
   font-size: 16px;
   font-weight: 500;
   text-align: left;
@@ -210,7 +210,7 @@
   left: 0;
   width: 100%;
   margin-top: 8px;
-  background: #ffffff;
+  background: var(--color-surface);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
@@ -230,7 +230,7 @@
   border: none;
   border-bottom: 1px solid #f1f5f9;
   cursor: pointer;
-  color: #1e293b;
+  color: var(--color-text);
   font-size: 15px;
   font-weight: 500;
   text-align: left;
@@ -247,7 +247,7 @@
 }
 
 .role-dropdown-icon {
-  color: #64748b;
+  color: var(--color-text-light);
   display: flex;
   align-items: center;
 }
@@ -259,7 +259,7 @@
 .back-btn {
   background: transparent;
   border: none;
-  color: #64748b;
+  color: var(--color-text-light);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -272,7 +272,7 @@
 }
 
 .back-btn:hover {
-  color: #1e293b;
+  color: var(--color-text);
 }
 
 .login-form .form-group {
@@ -283,7 +283,7 @@
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #475569;
+  color: var(--color-text);
   margin-bottom: 8px;
 }
 
@@ -296,7 +296,7 @@
 .input-icon {
   position: absolute;
   left: 14px;
-  color: #94a3b8;
+  color: var(--color-text-light);
 }
 
 .login-form input {
@@ -306,19 +306,19 @@
   border-radius: 12px;
   font-size: 15px;
   background: #f8fafc;
-  color: #1e293b;
+  color: var(--color-text);
   transition: all 0.2s ease;
 }
 
 .login-form input:focus {
   outline: none;
   border-color: #3b82f6;
-  background: #ffffff;
+  background: var(--color-surface);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .login-form input::placeholder {
-  color: #94a3b8;
+  color: var(--color-text-light);
 }
 
 .password-toggle {
@@ -326,14 +326,14 @@
   right: 14px;
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--color-text-light);
   cursor: pointer;
   padding: 0;
   display: flex;
 }
 
 .password-toggle:hover {
-  color: #64748b;
+  color: var(--color-text-light);
 }
 
 .form-options {
@@ -348,7 +348,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #475569;
+  color: var(--color-text);
   cursor: pointer;
 }
 

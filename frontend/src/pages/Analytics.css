@@ -11,12 +11,12 @@
 .page-header h1 {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--color-text);
   margin: 0 0 4px 0;
 }
 
 .page-header p {
-  color: #64748b;
+  color: var(--color-text-light);
   margin: 0;
 }
 
@@ -73,17 +73,17 @@
   align-items: center;
   gap: 12px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-text);
 }
 
 .arrow {
-  color: #94a3b8;
+  color: var(--color-text-light);
   font-weight: 400;
 }
 
 .od-count {
   font-size: 14px;
-  color: #64748b;
+  color: var(--color-text-light);
   font-weight: 500;
   background: #e2e8f0;
   padding: 4px 10px;
@@ -91,7 +91,7 @@
 }
 
 .empty-state {
-  color: #94a3b8;
+  color: var(--color-text-light);
   font-style: italic;
   text-align: center;
   padding: 20px 0;

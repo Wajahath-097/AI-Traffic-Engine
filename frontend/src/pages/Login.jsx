@@ -36,6 +36,10 @@ export default function Login() {
 
     try {
       await login({ officer_id: officerId, password })
+      // Enforce selected role to ensure sidebar renders correctly
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      storedUser.role = { name: selectedRole };
+      localStorage.setItem('user', JSON.stringify(storedUser));
       navigate('/', { replace: true })
     } catch (err) {
       setError(err?.response?.data?.detail || 'Login failed. Please check your credentials.')
@@ -46,10 +50,9 @@ export default function Login() {
 
   const roles = [
     { name: 'Super Admin', icon: <Shield size={20} />, username: 'superadmin' },
-    { name: 'Traffic Officer', icon: <Users size={20} />, username: 'officer1' },
-    { name: 'Control Room', icon: <Monitor size={20} />, username: 'control1' },
-    { name: 'Analyst', icon: <FileText size={20} />, username: 'analyst1' },
-    { name: 'Auditor', icon: <FileSearch size={20} />, username: 'auditor1' },
+    { name: 'Traffic Officer', icon: <Users size={20} />, username: 'officer' },
+    { name: 'Control Room', icon: <Monitor size={20} />, username: 'control' },
+    { name: 'Analyst', icon: <FileText size={20} />, username: 'analyst' },
   ]
 
   return (
@@ -76,19 +79,19 @@ export default function Login() {
             <div className="login-feature-icon">
               <BarChart2 size={24} />
             </div>
-            <div className="login-feature-text">Smarter<br/>Insights</div>
+            <div className="login-feature-text">Smarter<br />Insights</div>
           </div>
           <div className="login-feature">
             <div className="login-feature-icon">
               <ShieldCheck size={24} />
             </div>
-            <div className="login-feature-text">Better<br/>Decisions</div>
+            <div className="login-feature-text">Better<br />Decisions</div>
           </div>
           <div className="login-feature">
             <div className="login-feature-icon">
               <Zap size={24} />
             </div>
-            <div className="login-feature-text">Smoother<br/>Traffic</div>
+            <div className="login-feature-text">Smoother<br />Traffic</div>
           </div>
         </div>
       </div>
@@ -102,22 +105,22 @@ export default function Login() {
                 <h3>Welcome Back</h3>
                 <p>Please select your role to continue</p>
               </div>
-              
+
               <div className="role-dropdown-container">
-                <button 
-                  className="role-dropdown-btn" 
+                <button
+                  className="role-dropdown-btn"
                   onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
                 >
                   <span>Select a role</span>
                   {roleDropdownOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                 </button>
-                
+
                 {roleDropdownOpen && (
                   <div className="role-dropdown-list">
                     {roles.map((r) => (
-                      <button 
-                        key={r.name} 
-                        className="role-dropdown-item" 
+                      <button
+                        key={r.name}
+                        className="role-dropdown-item"
                         onClick={() => handleRoleSelect(r.name, r.username)}
                       >
                         <span className="role-dropdown-icon">{r.icon}</span>
@@ -136,7 +139,7 @@ export default function Login() {
               }}>
                 <ArrowLeft size={18} /> Back to roles
               </button>
-              
+
               <div className="login-card-header" style={{ marginTop: '1rem' }}>
                 <h3>{selectedRole} Login</h3>
                 <p>Sign in to your account</p>

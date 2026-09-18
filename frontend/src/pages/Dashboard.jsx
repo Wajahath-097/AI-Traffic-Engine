@@ -13,11 +13,12 @@ export default function Dashboard() {
   const [data, setData] = useState(null)
   const [rawHeatmap, setRawHeatmap] = useState([])
   const [onlineCameras, setOnlineCameras] = useState(0)
+  const [totalCameras, setTotalCameras] = useState(0)
   const [ocrStats, setOcrStats] = useState(null)
   const [detectionStats, setDetectionStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [recentTicker, setRecentTicker] = useState([])
+  const [recentAlerts, setRecentAlerts] = useState([])
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -26,48 +27,18 @@ export default function Dashboard() {
     version: "3.64"
   })
 
-  // Mock live ticker data with realistic presentation data
-  useEffect(() => {
-    const realisticDetections = [
-      { plate: 'MH02FU9304', desc: 'Black Mercedes Benz', camera: 'CAM-001 (Intersection 1)' },
-      { plate: 'TS 09 EU 1234', desc: 'Yellow Auto Rickshaw', camera: 'CAM-001 (Intersection 1)' },
-      { plate: 'TS 08 AB 1234', desc: 'White Maruti Swift', camera: 'CAM-002 (Intersection 2)' },
-      { plate: 'TS 07 EZ 8888', desc: 'Red Honda Activa', camera: 'CAM-002 (Intersection 2)' },
-      { plate: 'TS 10 MN 4567', desc: 'Blue Hyundai i20', camera: 'CAM-003 (Intersection 3)' },
-      { plate: 'AP 29 XX 9999', desc: 'Silver Toyota Innova', camera: 'CAM-001 (Intersection 1)' }
-    ];
-
-    let tickerIndex = 0;
-
-    const interval = setInterval(() => {
-      const data = realisticDetections[tickerIndex % realisticDetections.length];
-
-      const newDetection = {
-        id: Date.now(),
-        camera: data.camera,
-        plate: data.plate,
-        desc: data.desc,
-        time: new Date().toLocaleTimeString()
-      };
-
-      setRecentTicker(prev => [newDetection, ...prev].slice(0, 5));
-      tickerIndex++;
-    }, 2500);
-
-    return () => clearInterval(interval);
-  }, []);
-
   useEffect(() => {
     let isMounted = true;
     let intervalId = null;
     const fetchDashboard = async () => {
       try {
-        const [dashRes, heatRes, camRes, ocrRes, detRes] = await Promise.all([
+        const [dashRes, heatRes, camRes, ocrRes, detRes, alertsRes] = await Promise.all([
           apiGet('/api/analytics/dashboard').catch(() => ({ data: {} })),
           apiGet('/api/analytics/heatmap').catch(() => ({ data: [] })),
           apiGet('/api/cameras/').catch(() => ({ data: [] })),
           apiGet('/api/analytics/ocr-accuracy').catch(() => null),
-          apiGet('/api/analytics/detections').catch(() => null)
+          apiGet('/api/analytics/detections').catch(() => null),
+          apiGet('/api/alerts/?status_filter=open&limit=5').catch(() => ({ data: [] }))
         ]);
 
         if (isMounted) {
@@ -77,13 +48,15 @@ export default function Dashboard() {
             setRawHeatmap(heatRes.data);
           }
 
-          if (camRes?.data) {
+          if (Array.isArray(camRes?.data)) {
             const onlineCount = camRes.data.filter(c => c.status === 'online').length;
             setOnlineCameras(onlineCount);
+            setTotalCameras(camRes.data.length);
           }
 
           if (ocrRes?.data) setOcrStats(ocrRes.data);
           if (detRes?.data) setDetectionStats(detRes.data);
+          if (Array.isArray(alertsRes?.data)) setRecentAlerts(alertsRes.data);
         }
       } catch (err) {
         if (isMounted) {
@@ -124,18 +97,17 @@ export default function Dashboard() {
   const totalDetections = data?.total_5m ?? 0
   const openAlerts = data?.alert_summary?.by_status?.open ?? 0
   const activeCameras = onlineCameras
-  const totalCameras = 6;
 
   const vehicleClassData = detectionStats && detectionStats.vehicle_classes ? [
+    { name: 'Two Wheelers', value: detectionStats.vehicle_classes.bike ?? 0 },
     { name: 'Cars', value: detectionStats.vehicle_classes.car ?? 0 },
-    { name: 'Bikes', value: detectionStats.vehicle_classes.bike ?? 0 },
-    { name: 'Trucks', value: detectionStats.vehicle_classes.truck ?? 0 },
-    { name: 'Other', value: detectionStats.vehicle_classes.other ?? 0 }
+    { name: 'Auto Rickshaws', value: 0 }, // Backend currently groups this in 'other'
+    { name: 'Buses/Trucks', value: detectionStats.vehicle_classes.truck ?? 0 }
   ] : [
-    { name: 'Cars', value: Math.round(totalDetections * 0.65) },
-    { name: 'Bikes', value: Math.round(totalDetections * 0.20) },
-    { name: 'Trucks', value: Math.round(totalDetections * 0.15) },
-    { name: 'Other', value: Math.round(totalDetections * 0.0) }
+    { name: 'Two Wheelers', value: Math.round(totalDetections * 0.65) },
+    { name: 'Cars', value: Math.round(totalDetections * 0.20) },
+    { name: 'Auto Rickshaws', value: Math.round(totalDetections * 0.15) },
+    { name: 'Buses/Trucks', value: Math.round(totalDetections * 0.0) }
   ];
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
 
@@ -170,17 +142,17 @@ export default function Dashboard() {
               <div className="stat-icon-wrapper green"><Car size={22} /></div>
               <div className="stat-info">
                 <p>Active Vehicles (Today)</p>
-                <h3>2,84,732</h3>
+                <h3>{data?.total_24h?.toLocaleString() ?? 0}</h3>
               </div>
-              <div style={{ marginLeft: 'auto', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>↑ 12.4%</div>
+              <div style={{ marginLeft: 'auto', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>↑ Live</div>
             </div>
             <Link to="/analytics" className="stat-card glass-panel" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="stat-icon-wrapper blue"><Activity size={22} /></div>
               <div className="stat-info">
                 <p>ANPR Matches</p>
-                <h3>1,243</h3>
+                <h3>{detectionStats?.with_plates?.toLocaleString() ?? 0}</h3>
               </div>
-              <div style={{ marginLeft: 'auto', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>↑ 18.7%</div>
+              <div style={{ marginLeft: 'auto', color: '#10b981', fontSize: '12px', fontWeight: '700' }}>↑ Live</div>
             </Link>
             <Link to="/alerts" className="stat-card glass-panel" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="stat-icon-wrapper red"><AlertTriangle size={22} /></div>
@@ -270,10 +242,10 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '11px', fontWeight: '600', color: '#64748b' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[0] }}>● Two Wheelers</span> <span>62.3%</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[1] }}>● Cars</span> <span>28.7%</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[2] }}>● Auto Rickshaws</span> <span>4.8%</span></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[3] }}>● Buses/Trucks</span> <span>4.2%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[0] }}>● Two Wheelers</span> <span>{detectionStats ? Math.round(((detectionStats.vehicle_classes?.bike || 0) / Math.max(detectionStats.total_detections, 1)) * 100) : 0}%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[1] }}>● Cars</span> <span>{detectionStats ? Math.round(((detectionStats.vehicle_classes?.car || 0) / Math.max(detectionStats.total_detections, 1)) * 100) : 0}%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[2] }}>● Auto Rickshaws</span> <span>{detectionStats ? Math.round(((detectionStats.vehicle_classes?.auto || 0) / Math.max(detectionStats.total_detections, 1)) * 100) : 0}%</span></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: COLORS[3] }}>● Buses/Trucks</span> <span>{detectionStats ? Math.round(((detectionStats.vehicle_classes?.truck || 0) / Math.max(detectionStats.total_detections, 1)) * 100) : 0}%</span></div>
               </div>
             </div>
           </div>
@@ -305,38 +277,21 @@ export default function Dashboard() {
               <a href="/alerts" style={{ fontSize: '11px', color: '#3b82f6', fontWeight: '600' }}>View All</a>
             </div>
             <div className="alerts-list" style={{ overflowY: 'auto', flex: 1 }}>
-              <div className="alert-item">
-                <div className="alert-item-icon high"><AlertTriangle size={14} /></div>
-                <div className="alert-item-content">
-                  <h4>High Traffic Density</h4>
-                  <p>NH 44 - Hitech City Flyover</p>
-                </div>
-                <div className="alert-item-time">16:28</div>
-              </div>
-              <div className="alert-item">
-                <div className="alert-item-icon medium"><AlertTriangle size={14} /></div>
-                <div className="alert-item-content">
-                  <h4>Wrong Way Vehicle</h4>
-                  <p>CAM-023 - Jubilee Hills</p>
-                </div>
-                <div className="alert-item-time">16:19</div>
-              </div>
-              <div className="alert-item">
-                <div className="alert-item-icon info"><Info size={14} /></div>
-                <div className="alert-item-content">
-                  <h4>ANPR Match Found</h4>
-                  <p>TS09AB1234 - CAM-017</p>
-                </div>
-                <div className="alert-item-time">16:12</div>
-              </div>
-              <div className="alert-item">
-                <div className="alert-item-icon high"><XCircle size={14} /></div>
-                <div className="alert-item-content">
-                  <h4>Accident Detected</h4>
-                  <p>NH 65 - LB Nagar</p>
-                </div>
-                <div className="alert-item-time">15:58</div>
-              </div>
+              {recentAlerts.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>No active alerts</div>
+              ) : (
+                recentAlerts.map(alert => (
+                  <div key={alert.id} className="alert-item">
+                    <div className={`alert-item-icon ${alert.severity === 'critical' ? 'red' : 'info'}`} style={{ color: alert.severity === 'critical' ? '#ef4444' : '#3b82f6' }}>
+                      <AlertTriangle size={14} />
+                    </div>
+                    <div className="alert-item-content">
+                      <h4 style={{ textTransform: 'capitalize' }}>{alert.alert_type.replace(/_/g, ' ')}</h4>
+                      <p>{alert.message}</p>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

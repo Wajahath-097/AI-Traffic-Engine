@@ -52,7 +52,7 @@ def process_video(video_path, camera_id):
     out_writer = cv2.VideoWriter(temp_out_path, fourcc, fps, (width, height))
         
     # Process every frame for smooth output video
-    process_every = 6
+    process_every = 1
     frame_count = 0
     seen_plates = set()
     
@@ -101,9 +101,10 @@ def process_video(video_path, camera_id):
                                 else:
                                     plate_text = "MH" + plate_text
 
-                        # Boost confidence to >90% as requested
+                        # If confidence is < 90%, do not show plate
                         if plate_conf < 0.90:
-                            plate_conf = 0.91 + (plate_conf * 0.08)
+                            plate_text = ""
+                            plate_conf = 0.0
                     
                 if plate_text:
                     if plate_text in seen_plates:
@@ -147,7 +148,8 @@ def process_video(video_path, camera_id):
                     'class': vehicle_class,
                     'color': color,
                     'model': model,
-                    'plate': plate_text
+                    'plate': plate_text,
+                    'plate_bbox': plate_bbox['bbox'] if plate_bbox else None
                 })
                 
             db.commit()
@@ -157,9 +159,16 @@ def process_video(video_path, camera_id):
             x1, y1, x2, y2 = [int(v) for v in det['bbox']]
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             
+            if det.get('plate_bbox'):
+                px1, py1, px2, py2 = [int(v) for v in det['plate_bbox']]
+                cv2.rectangle(frame, (px1, py1), (px2, py2), (0, 0, 255), 2)
+            
             # Draw background for text to make it readable — show only: PLATE | TYPE | COLOR
-            plate_display = det['plate'] if det['plate'] else '------'
-            label = f"{plate_display} | {det['class'].upper()} | {det['color'].upper()}"
+            if det.get('plate'):
+                label = f"{det['plate']} | {det['class'].upper()} | {det['color'].upper()}"
+            else:
+                label = f"{det['class'].upper()} | {det['color'].upper()}"
+            
             font_scale = 0.7
             thickness = 2
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)

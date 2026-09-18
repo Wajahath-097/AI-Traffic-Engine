@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { Menu, LogOut, LayoutDashboard, Camera, Search as SearchIcon, BarChart2, AlertTriangle, Map, Shield, Bell } from 'lucide-react'
-import { logout } from '../services/api'
+import { Menu, LogOut, LayoutDashboard, Camera, Search as SearchIcon, BarChart2, AlertTriangle, Map, Shield, Bell, FileText } from 'lucide-react'
+import { logout, apiGet } from '../services/api'
 import logoImg from '../assets/logo.png'
 import headerLogo from '../assets/logo_new.jpg'
 import charminarImg from '../assets/hyderabad_traffic_logo.jpg'
@@ -13,18 +13,31 @@ export default function Layout() {
   const [darkMode, setDarkMode] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [alerts, setAlerts] = useState([
-    {
-      id: 1,
-      text: <span>Blacklisted vehicle <strong>MH12AB3456</strong> spotted on <strong>CAM-001</strong></span>,
-      time: 'Just now'
-    },
-    {
-      id: 2,
-      text: <span>Overspeeding detected on <strong>CAM-002</strong> (NH 65)</span>,
-      time: '5 minutes ago'
-    }
-  ])
+  const [alerts, setAlerts] = useState([])
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchAlerts = async () => {
+      try {
+        const res = await apiGet('/api/alerts/?status_filter=open&limit=5');
+        if (isMounted && res?.data && Array.isArray(res.data)) {
+          setAlerts(res.data.map(a => ({
+            id: a.id,
+            text: <span><strong>{a.alert_type.replace(/_/g, ' ').toUpperCase()}</strong>: {a.message}</span>,
+            time: new Date(a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to fetch alerts", err);
+      }
+    };
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
   const [searchQuery, setSearchQuery] = useState('')
 
   React.useEffect(() => {
@@ -46,10 +59,27 @@ export default function Layout() {
     return () => document.removeEventListener('click', handleOutsideClick)
   }, [])
 
-  const user = React.useMemo(() => {
-    const storedUser = localStorage.getItem('user')
-    return storedUser ? JSON.parse(storedUser) : { name: 'Officer' }
-  }, [])
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('user');
+      return stored ? JSON.parse(stored) : { name: 'Officer' };
+    } catch {
+      return { name: 'Officer' };
+    }
+  });
+
+  React.useEffect(() => {
+    const handleStorageChange = () => {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) setUser(JSON.parse(stored));
+      } catch (e) {
+        // ignore
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const handleLogout = () => {
     logout()
@@ -65,14 +95,8 @@ export default function Layout() {
 
   const navLinkClass = ({ isActive }) => `nav-link ${isActive ? 'active' : ''}`
 
-  const userRole = React.useMemo(() => {
-    try {
-      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      return storedUser?.role?.name || 'Super Admin';
-    } catch {
-      return 'Super Admin';
-    }
-  }, []);
+  const rawRole = user?.role?.name || user?.role || 'Super Admin';
+  const userRole = typeof rawRole === 'string' ? rawRole : 'Super Admin';
 
   const hasAccess = (allowedRoles) => {
     if (userRole === 'Super Admin') return true;

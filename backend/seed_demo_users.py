@@ -12,9 +12,9 @@ def seed_demo_users():
     try:
         demo_users = [
             {"officer_id": "superadmin", "name": "Super Admin Demo", "password": "admin123", "role": "Super Admin"},
-            {"officer_id": "officer1", "name": "Traffic Officer Demo", "password": "officer123", "role": "Traffic Officer"},
-            {"officer_id": "control1", "name": "Control Room Demo", "password": "control123", "role": "Control Room"},
-            {"officer_id": "analyst1", "name": "Analyst Demo", "password": "analyst123", "role": "Analyst"},
+            {"officer_id": "officer", "name": "Traffic Officer Demo", "password": "officer123", "role": "Traffic Officer"},
+            {"officer_id": "control", "name": "Control Room Demo", "password": "control123", "role": "Control Room"},
+            {"officer_id": "analyst", "name": "Analyst Demo", "password": "analyst123", "role": "Analyst"},
             {"officer_id": "auditor1", "name": "Auditor Demo", "password": "auditor123", "role": "Auditor"},
         ]
         

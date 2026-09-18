@@ -12,6 +12,8 @@ from app.models.models import User
 from typing import List
 from datetime import datetime, timedelta
 import logging
+import cv2
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -260,14 +262,7 @@ async def record_camera_health(
     
     return {"message": "Health event recorded"}
 
-from fastapi.responses import StreamingResponse
-import cv2
-import time
-import os
-from app.ai.detection import get_yolo_detector, get_ocr_engine
-from app.models.models import RegisteredVehicle
-
-LIVE_DETECTIONS = {}
+from app.models.models import RegisteredVehicle, VehicleDetection
 
 @router.get("/{camera_id}/stream")
 async def stream_camera(camera_id: str):
@@ -279,170 +274,137 @@ async def stream_camera(camera_id: str):
             camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
             if not camera:
                 return
-            
-            # Check if camera has a valid RTSP/HTTP stream configured
-            if camera.stream_secret_ref and camera.stream_secret_ref.startswith(("rtsp://", "http://", "https://")):
-                video_path = camera.stream_secret_ref
-                is_live_stream = True
-            else:
-                # Fallback to offline demo videos
-                video_map = {
-                    "CAM-001": "13020032_3840_2160_30fps.mp4",
-                    "CAM-002": "13105476_3840_2160_30fps.mp4",
-                    "CAM-003": "14985169_1920_1080_25fps.mp4"
-                }
-                video_file = video_map.get(camera_id, "13020032_3840_2160_30fps.mp4")
-    
-                from pathlib import Path
-                backend_dir = Path(__file__).resolve().parent.parent.parent
-                video_path = str(backend_dir.parent / "media" / "offline_videos" / video_file)
-                is_live_stream = False
-
-            cap = cv2.VideoCapture(video_path)
-            if not cap.isOpened():
-                logger.error(f"Failed to open video: {video_path}")
-                return
-
-            detector = get_yolo_detector()
-            ocr = get_ocr_engine()
-
-            if camera_id not in LIVE_DETECTIONS:
-                LIVE_DETECTIONS[camera_id] = []
-
-            # Background AI processing
-            import threading
-            import queue
-            
-            frame_queue = queue.Queue(maxsize=1)
-            shared_state = {"last_boxes": [], "running": True}
-            
-            def ai_worker():
-                local_db = SessionLocal()
-                try:
-                    while shared_state["running"]:
-                        try:
-                            frame_to_process = frame_queue.get(timeout=1.0)
-                        except queue.Empty:
-                            continue
-                            
-                        small_frame = cv2.resize(frame_to_process, (1280, 720))
-                        detections = detector.detect_vehicles(small_frame, confidence_threshold=0.4)
-
-                        current_boxes = []
-                        recent_live_dets = []
-
-                        for det in detections:
-                            bbox = det["bbox"]
-                            v_class = det["class"]
-
-                            plate_region = detector.detect_plates(small_frame, bbox)
-                            plate_text = ""
-                            if plate_region:
-                                ocr_res = ocr.recognize_plate(small_frame, plate_region["bbox"])
-                                if ocr_res and ocr_res.get("normalized_text"):
-                                    plate_text = ocr_res.get("normalized_text")
-                                    if "MOCKPLATE" in plate_text:
-                                        plate_text = ""
-
-                            color = detector.detect_color(small_frame, bbox)
-                            status = "UNVERIFIED"
-                            
-                            if plate_text:
-                                # Check RTO Database
-                                rto_record = local_db.query(RegisteredVehicle).filter(RegisteredVehicle.plate_number == plate_text).first()
-                                if rto_record:
-                                    if rto_record.vehicle_class.lower() == v_class.lower():
-                                        status = "VERIFIED"
-                                    else:
-                                        status = "MISMATCH"
-                                else:
-                                    status = "NOT_FOUND"
-
-                                cloud_url = f"s3://traffic-evidence-bucket/{camera_id}_{plate_text}_{int(time.time())}.jpg"
-
-                                det_info = {
-                                    "id": f"{plate_text}_{int(time.time())}",
-                                    "plate_number": plate_text,
-                                    "vehicle_class": v_class,
-                                    "vehicle_color": color,
-                                    "confidence": round(det["confidence"] * 100, 1),
-                                    "verification_status": status,
-                                    "detected_at": datetime.utcnow().isoformat() + "Z",
-                                    "evidence_url": cloud_url
-                                }
-                                recent_live_dets.append(det_info)
-
-                            current_boxes.append((bbox, v_class, plate_text, det["confidence"], status, color))
-
-                        shared_state["last_boxes"] = current_boxes
-                        if recent_live_dets:
-                            LIVE_DETECTIONS[camera_id] = (recent_live_dets + LIVE_DETECTIONS.get(camera_id, []))[:10]
-                except Exception as e:
-                    logger.error(f"AI Worker error: {e}")
-                finally:
-                    local_db.close()
-
-            ai_thread = threading.Thread(target=ai_worker)
-            ai_thread.daemon = True
-            ai_thread.start()
-
-            frame_count = 0
-            try:
-                while cap.isOpened():
-                    ret, frame = cap.read()
-                    if not ret:
-                        if is_live_stream:
-                            # Attempt to reconnect to live stream
-                            time.sleep(1)
-                            cap = cv2.VideoCapture(video_path)
-                            continue
-                        else:
-                            # Loop offline video
-                            cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                            continue
-
-                    frame_count += 1
-
-                    # Send to AI periodically
-                    if frame_count % 5 == 0:
-                        try:
-                            frame_queue.put_nowait(frame.copy())
-                        except queue.Full:
-                            pass # Skip if AI is still processing previous frame
-
-                    # Draw detections using latest available AI results
-                    last_boxes = shared_state["last_boxes"]
-                    for bbox, v_class, p_text, conf, status, color in last_boxes:
-                        x1, y1, x2, y2 = map(int, bbox)
-                        box_color = (0, 255, 0) # Green for all vehicles
-
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
-                        label = f"{v_class} {color}"
-                        if p_text:
-                            label += f" | {p_text}"
-                        cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, box_color, 2)
-
-                    ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                    frame_bytes = buffer.tobytes()
-
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-                    # Control frame rate for offline videos
-                    if not is_live_stream:
-                        time.sleep(0.033) # ~30 FPS
-            finally:
-                shared_state["running"] = False
-                ai_thread.join(timeout=2.0)
-                cap.release()
+            # We don't strictly need the DB stream URL anymore because we use the standard HLS CDN
         finally:
             db.close()
+            
+        # As per integrator guide, HLS is the most reliable cross-network stream (e.g. cctv.corp8.cloud/cam01/index.m3u8)
+        video_path = f"https://cctv.corp8.cloud/{camera_id}/index.m3u8"
+        is_live_stream = True
+
+        import os
+        # HLS is HTTP based so it doesn't need TCP/UDP forcing, but a 5-second timeout is good
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
+            
+        # Use CAP_FFMPEG as per sentinel instructions
+        cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
+        if not cap.isOpened():
+            logger.error(f"Failed to open video: {video_path}")
+            return
+
+        from app.ai.detection import get_yolo_detector
+        try:
+            yolo_detector = get_yolo_detector()
+        except Exception:
+            yolo_detector = None
+            
+        frame_count = 0
+        last_detections = []
+
+        try:
+            while cap.isOpened():
+                ret, frame = cap.read()
+                if not ret:
+                    if is_live_stream:
+                        time.sleep(1)
+                        cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
+                        continue
+                    else:
+                        cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        continue
+                        
+                # Resize frame for performance if it's 4K, but keep at 1080p for higher quality
+                if frame.shape[1] > 1920:
+                    frame = cv2.resize(frame, (1920, 1080))
+
+                frame_count += 1
+                
+                if yolo_detector and frame_count % 10 == 0:
+                    try:
+                        last_detections = yolo_detector.detect_vehicles(frame)
+                    except Exception as e:
+                        logger.error(f"Detection error: {e}")
+                        pass
+                        
+                for det in last_detections:
+                    x1, y1, x2, y2 = map(int, det['bbox'])
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    label = f"{det['class']} {det['confidence']:.2f}"
+                    cv2.putText(frame, label, (x1, max(y1-5, 0)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                frame_bytes = buffer.tobytes()
+
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+                if not is_live_stream:
+                    time.sleep(0.04)
+        finally:
+            if cap:
+                cap.release()
             
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
 
 
 @router.get("/{camera_id}/live-detections")
-async def get_live_detections(camera_id: str):
-    """Get the latest real-time ML detections from the video stream"""
-    return LIVE_DETECTIONS.get(camera_id, [])
+async def get_live_detections(camera_id: str, db: Session = Depends(get_db)):
+    """Get the latest real-time ML detections from the database"""
+    camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
+    if not camera:
+        return []
+    
+    # Get recent detections for this camera
+    detections = db.query(VehicleDetection)\
+        .filter(VehicleDetection.camera_id == camera.id)\
+        .order_by(VehicleDetection.detected_at.desc())\
+        .limit(10)\
+        .all()
+        
+    return [
+        {
+            "id": str(d.id),
+            "vehicle_class": d.vehicle_class,
+            "vehicle_color": d.vehicle_color,
+            "plate_number": d.plate_number if d.plate_confidence and d.plate_confidence > 0.90 else None,
+            "confidence": round(d.confidence * 100, 1) if d.confidence else 0,
+            "detected_at": d.detected_at.isoformat() + "Z"
+        }
+        for d in detections
+    ]
+
+from fastapi.responses import Response
+
+@router.get("/{camera_id}/snapshot")
+async def get_camera_snapshot(camera_id: str):
+    """Get a single frame from the camera without running AI"""
+    from app.database import SessionLocal
+    db = SessionLocal()
+    try:
+        camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
+        if not camera:
+            raise HTTPException(status_code=404, detail="Camera not found")
+    finally:
+        db.close()
+        
+    # Use official HLS CDN endpoint
+    video_path = f"https://cctv.corp8.cloud/{camera_id}/index.m3u8"
+
+    import os
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
+    cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
+    if not cap.isOpened():
+        raise HTTPException(status_code=500, detail="Could not open video stream")
+        
+    ret, frame = cap.read()
+    cap.release()
+    
+    if not ret:
+        raise HTTPException(status_code=500, detail="Could not read frame")
+        
+    ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    if not ret:
+        raise HTTPException(status_code=500, detail="Could not encode frame")
+        
+    return Response(content=buffer.tobytes(), media_type="image/jpeg")
 

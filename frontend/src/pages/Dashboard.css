@@ -51,7 +51,7 @@
 }
 
 .glass-panel {
-  background: #ffffff;
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 16px;
   border: 1px solid #e2e8f0;
@@ -84,7 +84,7 @@
 .stat-info p {
   margin: 0 0 4px 0;
   font-size: 12px;
-  color: #64748b;
+  color: var(--color-text-light);
   font-weight: 600;
 }
 
@@ -92,7 +92,7 @@
   margin: 0;
   font-size: 22px;
   font-weight: 800;
-  color: #1e293b;
+  color: var(--color-text);
 }
 
 .dashboard-main-content {
@@ -137,7 +137,7 @@
 .panel h3, .chart-panel h3 {
   margin: 0 0 12px 0;
   font-size: 14px;
-  color: #1e293b;
+  color: var(--color-text);
   font-weight: 700;
 }
 
@@ -171,12 +171,12 @@
 
 .status-item strong {
   font-size: 11px;
-  color: #1e293b;
+  color: var(--color-text);
 }
 
 .status-item span {
   font-size: 10px;
-  color: #64748b;
+  color: var(--color-text-light);
 }
 
 .alerts-list {
@@ -214,16 +214,35 @@
 .alert-item-content h4 {
   margin: 0 0 2px 0;
   font-size: 12px;
-  color: #1e293b;
+  color: var(--color-text);
   font-weight: 600;
 }
 .alert-item-content p {
   margin: 0;
   font-size: 11px;
-  color: #64748b;
+  color: var(--color-text-light);
 }
 .alert-item-time {
   font-size: 10px;
-  color: #94a3b8;
+  color: var(--color-text-light);
   font-weight: 500;
+}
+
+body.dark-mode .glass-panel {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+body.dark-mode .stat-info h3,
+body.dark-mode .panel h3, 
+body.dark-mode .chart-panel h3,
+body.dark-mode .status-item strong,
+body.dark-mode .alert-item-content h4 {
+  color: var(--color-text);
+}
+
+body.dark-mode .status-item,
+body.dark-mode .alert-item {
+  background: var(--color-bg);
+  border-color: var(--color-border);
 }

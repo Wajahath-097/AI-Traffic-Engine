@@ -83,14 +83,9 @@ def process_video(video_path: str, camera_id: str):
                 
                 if plate_region:
                     ocr_res = ocr.recognize_plate(frame, plate_region["bbox"])
-                    if ocr_res and ocr_res.get("normalized_text") and "MOCKPLATE" not in ocr_res.get("normalized_text"):
+                    if ocr_res and ocr_res.get("normalized_text") and ocr_res.get("confidence", 0) > 0.90:
                         plate_text = ocr_res["normalized_text"]
                         plate_conf = ocr_res["confidence"]
-                    elif ocr_res and ocr_res.get("normalized_text") == "MOCKPLATE":
-                        import random
-                        # If mock, just generate a dummy plate to show it's working
-                        plate_text = f"MOCK{random.randint(1000, 9999)}"
-                        plate_conf = 0.95
                 
                 # Insert into DB if a plate is found
                 if plate_text:
