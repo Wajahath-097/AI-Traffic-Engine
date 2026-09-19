@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     EVIDENCE_STORAGE_PATH: str = "/data/evidence"
     TEMP_FRAME_PATH: str = "/tmp/frames"
     
+    # Streaming Credentials
+    STREAM_EMAIL: str = ""
+    STREAM_PASSWORD: str = ""
+    
     # Data retention
     AUDIT_LOG_RETENTION_DAYS: int = 90
     DATA_RETENTION_DAYS: int = 365

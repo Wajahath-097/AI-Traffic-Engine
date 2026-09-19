@@ -279,13 +279,20 @@ async def stream_camera(camera_id: str):
         finally:
             db.close()
             
-        # As per integrator guide, HLS is the most reliable cross-network stream (e.g. cctv.corp8.cloud/cam01/index.m3u8)
-        video_path = f"https://cctv.corp8.cloud/{camera_id}/index.m3u8"
-        is_live_stream = True
-
         import os
-        # HLS is HTTP based so it doesn't need TCP/UDP forcing, but a 5-second timeout is good
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
+        from app.core.config import settings
+        
+        # Load credentials from settings
+        stream_email = settings.STREAM_EMAIL
+        stream_password = settings.STREAM_PASSWORD
+        
+        if stream_email and stream_password:
+            encoded_email = stream_email.replace("@", "%40")
+            video_path = f"rtsp://{encoded_email}:{stream_password}@103.250.160.189:8554/stream/{camera_id}"
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+        else:
+            video_path = f"https://cctv.corp8.cloud/{camera_id}/index.m3u8"
+            os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
             
         # Use CAP_FFMPEG as per sentinel instructions
         cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
@@ -398,11 +405,21 @@ async def get_camera_snapshot(camera_id: str):
     finally:
         db.close()
         
-    # Use official HLS CDN endpoint
-    video_path = f"https://cctv.corp8.cloud/{camera_id}/index.m3u8"
-
     import os
-    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
+    from app.core.config import settings
+    
+    # Load credentials from settings
+    stream_email = settings.STREAM_EMAIL
+    stream_password = settings.STREAM_PASSWORD
+    
+    if stream_email and stream_password:
+        encoded_email = stream_email.replace("@", "%40")
+        video_path = f"rtsp://{encoded_email}:{stream_password}@103.250.160.189:8554/stream/{camera_id}"
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+    else:
+        video_path = f"https://cctv.corp8.cloud/{camera_id}/index.m3u8"
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
+        
     cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
     if not cap.isOpened():
         # Return offline frame if stream cannot be opened
