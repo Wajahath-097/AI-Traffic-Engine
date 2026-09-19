@@ -45,8 +45,14 @@ docker-compose up
 
 # Run development servers
 # Frontend: cd frontend && npm run dev
-# Backend: cd backend && python run.py
+# Backend: cd backend && .\venv\Scripts\Activate.ps1 && python run.py
 ```
+
+### Default Credentials
+- **Super Admin:** `superadmin` / `admin123`
+- **Traffic Officer:** `officer` / `officer123`
+- **Control Room:** `control` / `control123`
+- **Analyst:** `analyst` / `analyst123`
 
 ## Project Structure
 

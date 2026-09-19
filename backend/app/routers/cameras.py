@@ -3,6 +3,7 @@ Camera management and monitoring routes
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.models import Camera, CameraHealthEvent, AuditLog
@@ -290,6 +291,16 @@ async def stream_camera(camera_id: str):
         cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
         if not cap.isOpened():
             logger.error(f"Failed to open video: {video_path}")
+            # Yield an offline frame if stream cannot be opened
+            import numpy as np
+            blank_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+            cv2.putText(blank_frame, f"STREAM {camera_id} OFFLINE", (300, 500), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
+            ret, buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            frame_bytes = buffer.tobytes()
+            while True:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                time.sleep(1)
             return
 
         from app.ai.detection import get_yolo_detector
@@ -394,13 +405,22 @@ async def get_camera_snapshot(camera_id: str):
     os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "stimeout;5000000"
     cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
     if not cap.isOpened():
-        raise HTTPException(status_code=500, detail="Could not open video stream")
+        # Return offline frame if stream cannot be opened
+        import numpy as np
+        blank_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        cv2.putText(blank_frame, f"STREAM {camera_id} OFFLINE", (300, 500), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
+        ret, buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        return Response(content=buffer.tobytes(), media_type="image/jpeg")
         
     ret, frame = cap.read()
     cap.release()
     
     if not ret:
-        raise HTTPException(status_code=500, detail="Could not read frame")
+        import numpy as np
+        blank_frame = np.zeros((1080, 1920, 3), dtype=np.uint8)
+        cv2.putText(blank_frame, f"NO FRAME FOR {camera_id}", (300, 500), cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 5)
+        ret, buffer = cv2.imencode('.jpg', blank_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        return Response(content=buffer.tobytes(), media_type="image/jpeg")
         
     ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
     if not ret:

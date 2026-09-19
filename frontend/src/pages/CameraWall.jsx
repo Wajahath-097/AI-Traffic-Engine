@@ -109,7 +109,7 @@ export default function CameraWall() {
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ background: 'var(--color-surface)', width: '100%', maxWidth: '1400px', borderRadius: '12px', overflow: 'hidden', display: 'flex', flexDirection: 'column', height: '80vh' }}>
             <div className="modal-header" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
               <div>
-                <h2 style={{ display: 'inline-block', marginRight: '16px', color: 'var(--color-text)', margin: 0 }}>{selectedCamera.name} ({selectedCamera.camera_id})</h2>
+                <h2 style={{ display: 'inline-block', marginRight: '16px', color: 'var(--color-text)', margin: 0 }}>{selectedCamera.name}</h2>
               </div>
               <button onClick={() => setSelectedCamera(null)} style={{ background: 'transparent', border: 'none', fontSize: '28px', color: 'var(--color-text)', cursor: 'pointer' }}>&times;</button>
             </div>

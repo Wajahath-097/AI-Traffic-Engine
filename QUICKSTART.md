@@ -30,6 +30,12 @@ npm run dev
 ### Step 3: Access the App!
 Click here to open the application: [http://localhost:5173/login](http://localhost:5173/login)
 
+**Default Demo Credentials:**
+- Super Admin: `superadmin` / `admin123`
+- Traffic Officer: `officer` / `officer123`
+- Control Room: `control` / `control123`
+- Analyst: `analyst` / `analyst123`
+
 ---
 *Note: The frontend is entirely powered by Node.js, and the backend is powered by Python/FastAPI. All Node.js dependencies are contained cleanly within the `frontend/node_modules` folder.*
 

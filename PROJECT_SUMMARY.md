@@ -383,11 +383,12 @@ docker-compose logs -f backend
 
 ## Default Credentials
 
-| Field | Value |
-|-------|-------|
-| Username | admin |
-| Password | admin123 |
-| Role | Admin |
+| Role | Username | Password |
+|-------|----------|----------|
+| Super Admin | superadmin | admin123 |
+| Traffic Officer | officer | officer123 |
+| Control Room | control | control123 |
+| Analyst | analyst | analyst123 |
 
 ⚠️ **CHANGE IN PRODUCTION!**
 
