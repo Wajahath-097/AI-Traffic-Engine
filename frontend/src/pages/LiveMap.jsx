@@ -13,7 +13,8 @@ export default function LiveMap() {
     id: 'google-map-script',
     googleMapsApiKey: "AIzaSyA6OMTdf0GLlzaZUE7S_LnpVdRVOfb3nMw",
     libraries: libraries,
-    version: "3.64"
+    language: "en",
+    region: "US"
   })
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export default function LiveMap() {
     }))
   }, [isLoaded, rawHeatmap])
 
-  const defaultCenter = useMemo(() => ({ lat: 17.3850, lng: 78.4867 }), [])
+  const defaultCenter = useMemo(() => ({ lat: 23.2156, lng: 72.6369 }), [])
 
   return (
     <div className="live-map-page" style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column' }}>

@@ -17,7 +17,8 @@ export default function TrajectoryMap({ geojson }) {
     id: 'google-map-script',
     googleMapsApiKey: "AIzaSyA6OMTdf0GLlzaZUE7S_LnpVdRVOfb3nMw",
     libraries: libraries,
-    version: "3.64"
+    language: "en",
+    region: "US"
   })
 
   const defaultCenter = useMemo(() => ({ lat: 17.3850, lng: 78.4867 }), []);

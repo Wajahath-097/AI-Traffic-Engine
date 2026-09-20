@@ -325,3 +325,42 @@ input:focus {
 .dashboard-panels {
   margin-top: 24px;
 }
+
+.camera-fullscreen-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 30;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  transition: all 0.2s ease;
+}
+
+.camera-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.camera-fullscreen-btn:active {
+  transform: scale(0.95);
+}
+
+:fullscreen,
+:-webkit-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  background: #000 !important;
+}
+

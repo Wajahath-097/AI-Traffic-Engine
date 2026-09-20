@@ -64,6 +64,7 @@ class Settings(BaseSettings):
     # Streaming Credentials
     STREAM_EMAIL: str = ""
     STREAM_PASSWORD: str = ""
+    STREAM_HOST: str = "103.250.160.189"
     
     # Data retention
     AUDIT_LOG_RETENTION_DAYS: int = 90

@@ -2,17 +2,18 @@
 Traffic AI Engine - FastAPI Application Entry Point
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 import logging
 from typing import Optional
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.logger import setup_logging
-from app.database import engine, SessionLocal
+from app.database import engine, SessionLocal, get_db
 from app.models.models import Base, Role
 from app.routers import auth, cameras, detection, detections, search, trajectories, alerts, analytics, admin, blacklist
 
@@ -94,11 +95,24 @@ app.include_router(alerts.router, prefix="/api/alerts", tags=["Alerts"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Administration"])
 app.include_router(blacklist.router)
+app.include_router(detections.router)
 
 import os
 media_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "media")
 if os.path.exists(media_path):
     app.mount("/api/media", StaticFiles(directory=media_path), name="media")
+
+
+@app.get("/api/ingest")
+def sentinel_ingest_catalogue(db: Session = Depends(get_db)):
+    """
+    Catalogue endpoint compliant with Sentinel Sandbox specification:
+    Returns camera list, status, codec, and all three protocol endpoints (RTSP, WebRTC/WHEP, HLS).
+    """
+    from app.routers.cameras import get_ingest_catalogue
+    return get_ingest_catalogue(db=db)
+
+
 
 
 @app.get("/health")

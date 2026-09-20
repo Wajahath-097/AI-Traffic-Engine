@@ -309,12 +309,12 @@ class BlacklistEntryResponse(BaseModel):
 
 class AuditLogResponse(BaseModel):
     id: UUID
-    user_id: Optional[UUID]
+    user_id: Optional[UUID] = None
     action: str
     resource_type: str
-    resource_id: str
-    details: Optional[dict]
-    ip_address: str
+    resource_id: Optional[str] = None
+    details: Optional[dict] = None
+    ip_address: Optional[str] = None
     created_at: datetime
     
     class Config:

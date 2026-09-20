@@ -10,7 +10,14 @@ import './Layout.css'
 export default function Layout() {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(() => {
+    try {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    } catch {
+      return false;
+    }
+  })
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [alerts, setAlerts] = useState([])
@@ -46,6 +53,7 @@ export default function Layout() {
     } else {
       document.body.classList.remove('dark-mode')
     }
+    localStorage.setItem('darkMode', darkMode);
   }, [darkMode])
 
   // Close dropdown on outside click

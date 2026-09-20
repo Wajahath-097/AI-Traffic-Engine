@@ -12,8 +12,12 @@ const libraries = ['visualization'];
 export default function Dashboard() {
   const [data, setData] = useState(null)
   const [rawHeatmap, setRawHeatmap] = useState([])
-  const [onlineCameras, setOnlineCameras] = useState(0)
-  const [totalCameras, setTotalCameras] = useState(0)
+  const [onlineCameras, setOnlineCameras] = useState(() => {
+    return parseInt(localStorage.getItem('cached_online_cameras') || '0', 10);
+  })
+  const [totalCameras, setTotalCameras] = useState(() => {
+    return parseInt(localStorage.getItem('cached_total_cameras') || '0', 10);
+  })
   const [ocrStats, setOcrStats] = useState(null)
   const [detectionStats, setDetectionStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -24,7 +28,8 @@ export default function Dashboard() {
     id: 'google-map-script',
     googleMapsApiKey: "AIzaSyA6OMTdf0GLlzaZUE7S_LnpVdRVOfb3nMw",
     libraries: libraries,
-    version: "3.64"
+    language: "en",
+    region: "US"
   })
 
   useEffect(() => {
@@ -48,10 +53,19 @@ export default function Dashboard() {
             setRawHeatmap(heatRes.data);
           }
 
-          if (Array.isArray(camRes?.data)) {
+          if (dashRes.data?.total_cameras !== undefined) {
+            const tot = Number(dashRes.data.total_cameras) || 0;
+            const onl = Number(dashRes.data.online_cameras) || 0;
+            setTotalCameras(tot);
+            setOnlineCameras(onl);
+            localStorage.setItem('cached_total_cameras', String(tot));
+            localStorage.setItem('cached_online_cameras', String(onl));
+          } else if (Array.isArray(camRes?.data) && camRes.data.length > 0) {
             const onlineCount = camRes.data.filter(c => c.status === 'online').length;
             setOnlineCameras(onlineCount);
             setTotalCameras(camRes.data.length);
+            localStorage.setItem('cached_online_cameras', String(onlineCount));
+            localStorage.setItem('cached_total_cameras', String(camRes.data.length));
           }
 
           if (ocrRes?.data) setOcrStats(ocrRes.data);
@@ -71,8 +85,8 @@ export default function Dashboard() {
     }
 
     fetchDashboard()
-    // Poll every 5 seconds for continuous live updates
-    intervalId = setInterval(fetchDashboard, 5000);
+    // Poll every 15 seconds for continuous live updates (avoids DB connection limit)
+    intervalId = setInterval(fetchDashboard, 15000);
 
     return () => {
       isMounted = false;
@@ -179,7 +193,7 @@ export default function Dashboard() {
               {isLoaded && window.google ? (
                 <GoogleMap
                   mapContainerStyle={{ width: '100%', height: '100%' }}
-                  center={{ lat: 17.4399, lng: 78.4983 }}
+                  center={{ lat: 23.2156, lng: 72.6369 }}
                   zoom={12}
                   options={{
                     disableDefaultUI: true,

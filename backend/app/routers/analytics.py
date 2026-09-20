@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+import threading
+import time
+
+_dashboard_cache = {}
+_dashboard_cache_lock = threading.Lock()
+_DASHBOARD_CACHE_TTL = 15.0  # seconds
+
 
 @router.get("/dashboard")
 async def get_dashboard_analytics(
@@ -26,6 +33,12 @@ async def get_dashboard_analytics(
     """
     Get dashboard summary analytics
     """
+    now = time.time()
+    with _dashboard_cache_lock:
+        cached = _dashboard_cache.get(date_range)
+        if cached and (now - cached["ts"]) < _DASHBOARD_CACHE_TTL:
+            return cached["data"]
+
     # Parse date range
     hours_map = {"24h": 24, "7d": 168, "30d": 720, "90d": 2160}
     hours = hours_map.get(date_range, 24)
@@ -72,56 +85,53 @@ async def get_dashboard_analytics(
         for cam in top_cameras_data
     ]
     
-    # Camera uptime
-    camera_uptime = {}
+    # Camera uptime - single group_by query instead of N+1
     cameras = db.query(Camera).all()
+    health_grouped = db.query(
+        CameraHealthEvent.camera_id,
+        CameraHealthEvent.status,
+        func.count(CameraHealthEvent.id)
+    ).filter(CameraHealthEvent.recorded_at >= cutoff_time)\
+    .group_by(CameraHealthEvent.camera_id, CameraHealthEvent.status)\
+    .all()
+
+    health_totals = {}
+    health_online = {}
+    for cam_id, st, cnt in health_grouped:
+        health_totals[cam_id] = health_totals.get(cam_id, 0) + cnt
+        if st == "online":
+            health_online[cam_id] = health_online.get(cam_id, 0) + cnt
+
+    camera_uptime = {}
     for cam in cameras:
-        total_health_events = db.query(func.count(CameraHealthEvent.id))\
-            .filter(CameraHealthEvent.camera_id == cam.id,
-                   CameraHealthEvent.recorded_at >= cutoff_time)\
-            .scalar() or 0
-        
-        online_events = db.query(func.count(CameraHealthEvent.id))\
-            .filter(CameraHealthEvent.camera_id == cam.id,
-                   CameraHealthEvent.status == "online",
-                   CameraHealthEvent.recorded_at >= cutoff_time)\
-            .scalar() or 0
-        
-        uptime_pct = (online_events / total_health_events * 100) if total_health_events > 0 else 0
+        tot = health_totals.get(cam.id, 0)
+        onl = health_online.get(cam.id, 0)
+        uptime_pct = (onl / tot * 100) if tot > 0 else (100.0 if cam.status == "online" else 0.0)
         camera_uptime[cam.camera_id] = {
             "uptime_percentage": round(uptime_pct, 2),
             "status": cam.status
         }
     
-    # Alert summary
+    # Alert summary - single group_by queries
+    alert_sev = dict(db.query(Alert.severity, func.count(Alert.id))
+                     .filter(Alert.created_at >= cutoff_time)
+                     .group_by(Alert.severity).all())
+    alert_st = dict(db.query(Alert.status, func.count(Alert.id))
+                    .filter(Alert.created_at >= cutoff_time)
+                    .group_by(Alert.status).all())
+
     alert_summary = {
-        "total_alerts": db.query(func.count(Alert.id))\
-            .filter(Alert.created_at >= cutoff_time)\
-            .scalar() or 0,
+        "total_alerts": sum(alert_sev.values()),
         "by_severity": {
-            "critical": db.query(func.count(Alert.id))\
-                .filter(Alert.severity == "critical", Alert.created_at >= cutoff_time)\
-                .scalar() or 0,
-            "high": db.query(func.count(Alert.id))\
-                .filter(Alert.severity == "high", Alert.created_at >= cutoff_time)\
-                .scalar() or 0,
-            "medium": db.query(func.count(Alert.id))\
-                .filter(Alert.severity == "medium", Alert.created_at >= cutoff_time)\
-                .scalar() or 0,
-            "low": db.query(func.count(Alert.id))\
-                .filter(Alert.severity == "low", Alert.created_at >= cutoff_time)\
-                .scalar() or 0
+            "critical": alert_sev.get("critical", 0),
+            "high": alert_sev.get("high", 0),
+            "medium": alert_sev.get("medium", 0),
+            "low": alert_sev.get("low", 0)
         },
         "by_status": {
-            "open": db.query(func.count(Alert.id))\
-                .filter(Alert.status == "open", Alert.created_at >= cutoff_time)\
-                .scalar() or 0,
-            "investigating": db.query(func.count(Alert.id))\
-                .filter(Alert.status == "investigating", Alert.created_at >= cutoff_time)\
-                .scalar() or 0,
-            "resolved": db.query(func.count(Alert.id))\
-                .filter(Alert.status == "resolved", Alert.created_at >= cutoff_time)\
-                .scalar() or 0
+            "open": alert_st.get("open", 0),
+            "investigating": alert_st.get("investigating", 0),
+            "resolved": alert_st.get("resolved", 0)
         }
     }
     
@@ -136,7 +146,12 @@ async def get_dashboard_analytics(
     total_30d = db.query(func.count(VehicleDetection.id)).filter(VehicleDetection.created_at >= thirty_days_ago).scalar() or 0
     total_5m = db.query(func.count(VehicleDetection.id)).filter(VehicleDetection.created_at >= five_minutes_ago).scalar() or 0
 
+    total_cameras_count = len([c for c in cameras if c.enabled])
+    online_cameras_count = len([c for c in cameras if c.enabled and c.status == "online"])
+
     return {
+        "total_cameras": total_cameras_count,
+        "online_cameras": online_cameras_count,
         "total_detections": total_detections,
         "total_5m": total_5m,
         "total_24h": total_24h,

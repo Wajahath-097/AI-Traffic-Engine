@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 class YOLODetector:
     """Vehicle detection using YOLOv8"""
     
-    def __init__(self, model_name: str = "yolov8n"):
+    def __init__(self, model_name: str = "yolov8m"):
         """Initialize YOLOv8 detector"""
         try:
             import torch
@@ -66,6 +66,19 @@ class YOLODetector:
                     # Filter for vehicles
                     if class_name in ["car", "truck", "bus", "motorcycle", "bicycle"]:
                         coords = box.xyxy[0].tolist()
+                        x1, y1, x2, y2 = coords
+                        
+                        # Heuristic for "autorickshaw": 
+                        # In India, auto-rickshaws are often misclassified by COCO models as trucks, cars, or motorcycles.
+                        # They typically have a squarish aspect ratio (close to 1:1) from the front/back
+                        width = x2 - x1
+                        height = y2 - y1
+                        if width > 0 and height > 0:
+                            aspect_ratio = width / height
+                            # If it's classified as a truck/car, but is relatively small and boxy, it might be an auto
+                            if class_name in ["truck", "car"] and 0.8 < aspect_ratio < 1.25 and height < frame.shape[0] * 0.4:
+                                class_name = "autorickshaw"
+                        
                         detections.append({
                             "class": class_name,
                             "confidence": conf,
@@ -146,38 +159,43 @@ class YOLODetector:
         if center_roi.size == 0:
             center_roi = vehicle_roi
             
-        pixels = np.float32(center_roi.reshape(-1, 3))
-        if len(pixels) == 0:
-            return "unknown"
-            
-        n_colors = 1
-        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, .1)
-        flags = cv2.KMEANS_RANDOM_CENTERS
-        _, labels, palette = cv2.kmeans(pixels, n_colors, None, criteria, 10, flags)
+        # Convert to HSV for better color detection
+        hsv_roi = cv2.cvtColor(center_roi, cv2.COLOR_BGR2HSV)
         
-        dominant_color_bgr = palette[0]
-        
-        # Simple color distance logic
-        colors = {
-            "black": np.array([0, 0, 0]),
-            "white": np.array([255, 255, 255]),
-            "red": np.array([0, 0, 255]),
-            "blue": np.array([255, 0, 0]),
-            "silver": np.array([192, 192, 192]),
-            "gray": np.array([128, 128, 128]),
-            "yellow": np.array([0, 255, 255]),
-            "green": np.array([0, 255, 0]),
+        # Define color ranges in HSV
+        color_ranges = {
+            "red": [
+                (np.array([0, 100, 100]), np.array([10, 255, 255])),
+                (np.array([160, 100, 100]), np.array([180, 255, 255]))
+            ],
+            "blue": [(np.array([100, 100, 50]), np.array([130, 255, 255]))],
+            "green": [(np.array([35, 50, 50]), np.array([85, 255, 255]))],
+            "yellow": [(np.array([20, 100, 100]), np.array([35, 255, 255]))],
+            "white": [(np.array([0, 0, 200]), np.array([180, 30, 255]))],
+            "black": [(np.array([0, 0, 0]), np.array([180, 255, 40]))],
+            "silver": [(np.array([0, 0, 150]), np.array([180, 20, 200]))],
+            "gray": [(np.array([0, 0, 40]), np.array([180, 40, 150]))]
         }
         
-        min_dist = float('inf')
+        max_count = 0
         best_color = "unknown"
-        for name, color_bgr in colors.items():
-            dist = np.linalg.norm(dominant_color_bgr - color_bgr)
-            if dist < min_dist:
-                min_dist = dist
-                best_color = name
+        
+        for color_name, ranges in color_ranges.items():
+            mask = np.zeros(hsv_roi.shape[:2], dtype=np.uint8)
+            for lower, upper in ranges:
+                mask |= cv2.inRange(hsv_roi, lower, upper)
+            
+            count = cv2.countNonZero(mask)
+            if count > max_count:
+                max_count = count
+                best_color = color_name
                 
-        return best_color
+        # Only return color if it makes up a significant portion of the ROI
+        total_pixels = hsv_roi.shape[0] * hsv_roi.shape[1]
+        if max_count > total_pixels * 0.1:
+            return best_color
+            
+        return "unknown"
 
 
 

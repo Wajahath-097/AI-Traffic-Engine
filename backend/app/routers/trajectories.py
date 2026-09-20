@@ -21,6 +21,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=List[JourneyResponse])
+@router.get("/journeys", response_model=List[JourneyResponse])
 async def list_trajectories(
     limit: int = Query(50, le=1000),
     current_user: User = Depends(get_current_traffic_officer),
@@ -35,6 +36,40 @@ async def list_trajectories(
         .all()
     
     return [JourneyResponse.from_orm(j) for j in journeys]
+
+
+@router.get("/map-data")
+async def get_general_map_data(
+    current_user: User = Depends(get_current_traffic_officer),
+    db: Session = Depends(get_db)
+):
+    """
+    Get GIS GeoJSON for all active cameras
+    """
+    cameras = db.query(Camera).filter(Camera.enabled == True).all()
+    features = []
+    for camera in cameras:
+        if camera.latitude and camera.longitude:
+            features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [camera.longitude, camera.latitude]
+                },
+                "properties": {
+                    "type": "camera",
+                    "camera_id": camera.camera_id,
+                    "name": camera.name,
+                    "location": camera.location,
+                    "status": camera.status
+                }
+            })
+    return {
+        "geojson": {
+            "type": "FeatureCollection",
+            "features": features
+        }
+    }
 
 
 @router.get("/{trajectory_id}", response_model=JourneyResponse)
