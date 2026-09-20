@@ -3,6 +3,9 @@
 Entry point for running the Traffic AI Engine backend
 """
 
+import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
+
 import uvicorn
 from app.core.config import settings
 

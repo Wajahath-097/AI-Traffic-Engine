@@ -13,6 +13,8 @@ from app.models.models import User
 from typing import List
 from datetime import datetime, timedelta
 import logging
+import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
 import cv2
 import time
 import threading
@@ -513,29 +515,11 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
     Direct RTSP over TCP connection with frame pacing for low-spec CPU.
     """
     async def generate_frames():
-        from app.database import SessionLocal
         from app.core.config import settings
-
-        db = SessionLocal()
-        cam_db_id = None
-        try:
-            camera = db.query(Camera).filter(Camera.camera_id == camera_id).first()
-            if not camera:
-                return
-            cam_db_id = camera.id
-        finally:
-            db.close()
-
-        stream_email = settings.STREAM_EMAIL
-        stream_password = settings.STREAM_PASSWORD
-        stream_host = getattr(settings, "STREAM_HOST", "103.250.160.189")
-
-        if not (stream_email and stream_password):
-            return
 
         cid = camera_id.lower()
 
-        # Instantly yield current snapshot as first frame so modal/card appears without delay
+        # 1. Instantly yield current snapshot as first frame so browser gets headers and image with 0ms delay
         snap_file = SNAPSHOT_DIR / f"{cid}.jpg"
         if snap_file.exists():
             try:
@@ -551,6 +535,13 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
             _, init_buf = cv2.imencode('.jpg', init_frame, [cv2.IMWRITE_JPEG_QUALITY, 50])
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + init_buf.tobytes() + b'\r\n')
+
+        stream_email = settings.STREAM_EMAIL
+        stream_password = settings.STREAM_PASSWORD
+        stream_host = getattr(settings, "STREAM_HOST", "103.250.160.189")
+
+        if not (stream_email and stream_password):
+            return
 
         encoded_email = stream_email.replace("@", "%40")
         rtsp_url = f"rtsp://{encoded_email}:{stream_password}@{stream_host}:8554/stream/{cid}"
@@ -571,11 +562,12 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
                 await asyncio.sleep(1)
             return
 
-        # Mark online
-        if cam_db_id:
+        # Mark online in background thread to avoid blocking stream
+        def _mark_online():
             try:
+                from app.database import SessionLocal
                 dbu = SessionLocal()
-                c = dbu.query(Camera).filter(Camera.id == cam_db_id).first()
+                c = dbu.query(Camera).filter(Camera.camera_id.ilike(camera_id)).first()
                 if c:
                     c.status = "online"
                     c.last_heartbeat = datetime.utcnow()
@@ -583,6 +575,8 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
                 dbu.close()
             except Exception:
                 pass
+        threading.Thread(target=_mark_online, daemon=True).start()
+        cam_db_id = None
 
         # AI detection disabled as requested by user to ensure smooth playback
         yolo_detector = None
@@ -731,6 +725,10 @@ async def websocket_stream_camera(websocket: WebSocket, camera_id: str, preview:
             pass
         return
 
+    # Discard initial GOP catch-up frames to eliminate decode artifacts on join
+    for _ in range(6):
+        await asyncio.to_thread(cap.read)
+
     frame_delay = 0.05 if preview else 0.033
     jpeg_quality = 65 if preview else 80
     consecutive_fails = 0
@@ -828,8 +826,8 @@ def _warmup_camera_snapshots():
             time.sleep(30)
 
 
-# Background warmer enabled to automatically populate camera thumbnails
-_warmer_thread = threading.Thread(target=_warmup_camera_snapshots, daemon=True, name="snap_warmer")
-_warmer_thread.start()
+# Background warmer disabled to keep backend ultra-responsive and prevent connection saturation
+# _warmer_thread = threading.Thread(target=_warmup_camera_snapshots, daemon=True, name="snap_warmer")
+# _warmer_thread.start()
 
 

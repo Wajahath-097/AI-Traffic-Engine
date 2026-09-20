@@ -13,11 +13,17 @@ function CameraGridCard({ camera, onSelect, baseUrl, index }) {
       ([entry]) => {
         setIsVisible(entry.isIntersecting);
       },
-      { rootMargin: '200px' }
+      { rootMargin: '120px', threshold: 0.05 }
     );
-    if (cardRef.current) observer.observe(cardRef.current);
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
     return () => observer.disconnect();
   }, []);
+
+  const snapshotUrl = `${baseUrl}/api/cameras/${camera.camera_id}/snapshot?c=1`;
 
   return (
     <div
@@ -28,14 +34,15 @@ function CameraGridCard({ camera, onSelect, baseUrl, index }) {
     >
       <div className="camera-visual" style={{ position: 'relative', background: '#0a0a0c', borderRadius: '4px 4px 0 0', overflow: 'hidden', height: '240px' }}>
         {isVisible ? (
-          <WebRTCPlayer 
-            cameraId={camera.camera_id} 
-            placeholderSrc={`${baseUrl}/api/cameras/${camera.camera_id}/snapshot?c=1`}
+          <WebRTCPlayer
+            cameraId={camera.camera_id}
+            placeholderSrc={snapshotUrl}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           />
         ) : (
           <img 
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            src={`${baseUrl}/api/cameras/${camera.camera_id}/snapshot?c=1`}
+            src={snapshotUrl}
             alt={`Snapshot for ${camera.camera_id}`}
             loading="lazy"
           />
@@ -61,7 +68,7 @@ export default function CameraWall() {
   const [cameras, setCameras] = useState(() => {
     try {
       const cached = localStorage.getItem('cached_cameras_list');
-      return cached ? JSON.parse(cached) : [];
+      return cached ? JSON.parse(cached).slice(0, 20) : [];
     } catch (e) {
       return [];
     }
@@ -175,9 +182,10 @@ export default function CameraWall() {
     try {
       const response = await apiGet('/api/cameras/')
       if (response.data && response.data.length > 0) {
-        setCameras(response.data)
+        const top20 = response.data.slice(0, 20)
+        setCameras(top20)
         setError('')
-        localStorage.setItem('cached_cameras_list', JSON.stringify(response.data))
+        localStorage.setItem('cached_cameras_list', JSON.stringify(top20))
       }
     } catch (err) {
       console.error("Failed to load cameras:", err)
@@ -255,7 +263,7 @@ export default function CameraWall() {
       </div>
 
       <div className="grid grid-2">
-        {cameras.map((camera, index) => (
+        {cameras.slice(0, 20).map((camera, index) => (
           <CameraGridCard
             key={camera.id}
             camera={camera}
@@ -295,36 +303,39 @@ export default function CameraWall() {
                   justifyContent: 'center' 
                 }}
               >
-                <>
+                <div 
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    transform: `scale(${zoomLevel})`, 
+                    transition: 'transform 0.25s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
                   {isPlaying ? (
-                    <div style={{
-                      width: '100%',
-                      height: '100%',
-                      transform: `scale(${zoomLevel})`,
-                      transition: 'transform 0.25s ease',
-                    }}>
-                      <WebRTCPlayer 
-                        key={`${selectedCamera.camera_id}-${modalStreamKey}`}
-                        cameraId={selectedCamera.camera_id}
-                        style={{ objectFit: 'contain' }}
-                        placeholderSrc={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
-                      />
-                    </div>
+                    <WebRTCPlayer
+                      key={`${selectedCamera.camera_id}-${modalStreamKey}`}
+                      cameraId={selectedCamera.camera_id}
+                      placeholderSrc={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
                   ) : (
-                      <img 
-                        key={`${selectedCamera.camera_id}-snapshot`}
-                        src={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
-                        alt={`Snapshot for ${selectedCamera.camera_id}`}
-                        style={{ 
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          transform: `scale(${zoomLevel})`,
-                          transition: 'transform 0.25s ease',
-                          display: 'block'
-                        }}
-                      />
-                    )}
+                    <img 
+                      key={`${selectedCamera.camera_id}-snapshot`}
+                      src={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
+                      alt={`Snapshot for ${selectedCamera.camera_id}`}
+                      style={{ 
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'contain',
+                        display: 'block'
+                      }}
+                    />
+                  )}
+                </div>
 
                     {/* Controls Overlay */}
                     <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '20px', alignItems: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '10px 24px', borderRadius: '30px', zIndex: 10, border: '1px solid rgba(255,255,255,0.15)' }}>
@@ -369,7 +380,6 @@ export default function CameraWall() {
                         </svg>
                       )}
                     </button>
-                  </>
               </div>
               
               {/* Live Detections Sidebar Removed as requested by User */}

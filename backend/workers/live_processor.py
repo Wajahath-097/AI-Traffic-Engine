@@ -13,6 +13,7 @@ Optimised for Intel Pentium Silver / no-GPU:
 """
 
 import os
+os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;5000000"
 import sys
 import time
 import cv2
