@@ -12,6 +12,7 @@ export default function LiveMap() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: "AIzaSyA6OMTdf0GLlzaZUE7S_LnpVdRVOfb3nMw",
+    version: "3.64",
     libraries: libraries,
     language: "en",
     region: "US"

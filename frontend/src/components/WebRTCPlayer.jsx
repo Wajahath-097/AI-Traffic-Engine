@@ -9,7 +9,7 @@ import React, { useEffect, useRef, useState } from 'react';
  *  • Graceful fallback UI on error
  *  • Cleans up PeerConnection on unmount
  */
-export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, style = {}, onStatusChange }) {
+export default function WebRTCPlayer({ cameraId, delay = 0, autoPlay = true, muted = true, style = {}, onStatusChange, placeholderSrc }) {
   const videoRef = useRef(null);
   const pcRef = useRef(null);
   const retryRef = useRef(null);
@@ -22,7 +22,6 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
     const connect = async () => {
       if (cancelled) return;
 
-      // Clean up previous connection if any
       if (pcRef.current) {
         try { pcRef.current.close(); } catch (_) {}
       }
@@ -36,6 +35,7 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
       pc.ontrack = (event) => {
         if (videoRef.current && videoRef.current.srcObject !== event.streams[0]) {
           videoRef.current.srcObject = event.streams[0];
+          videoRef.current.play().catch((e) => console.log('Autoplay blocked or failed:', e));
         }
       };
 
@@ -48,7 +48,6 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
         } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
           setStatus('error');
           if (onStatusChange) onStatusChange('offline');
-          // Reconnect with exponential backoff
           const delay = Math.min(2000 * Math.pow(2, retryCount), 30000);
           retryCount++;
           retryRef.current = setTimeout(connect, delay);
@@ -60,11 +59,28 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
-        // Route through our backend proxy which handles Sentinel auth
+        await new Promise((resolve) => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            const checkState = () => {
+              if (pc.iceGatheringState === 'complete') {
+                pc.removeEventListener('icegatheringstatechange', checkState);
+                resolve();
+              }
+            };
+            pc.addEventListener('icegatheringstatechange', checkState);
+            setTimeout(() => {
+              pc.removeEventListener('icegatheringstatechange', checkState);
+              resolve();
+            }, 1500);
+          }
+        });
+
         const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
         const response = await fetch(`${baseUrl}/api/cameras/${cameraId}/webrtc`, {
           method: 'POST',
-          body: offer.sdp,
+          body: pc.localDescription.sdp,
           headers: {
             'Content-Type': 'application/sdp'
           }
@@ -85,7 +101,6 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
         if (!cancelled) {
           setStatus('error');
           if (onStatusChange) onStatusChange('offline');
-          // Reconnect with backoff
           const delay = Math.min(2000 * Math.pow(2, retryCount), 30000);
           retryCount++;
           retryRef.current = setTimeout(connect, delay);
@@ -93,10 +108,16 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
       }
     };
 
-    connect();
+    let initTimer;
+    if (delay > 0) {
+      initTimer = setTimeout(connect, delay);
+    } else {
+      connect();
+    }
 
     return () => {
       cancelled = true;
+      if (initTimer) clearTimeout(initTimer);
       if (retryRef.current) clearTimeout(retryRef.current);
       if (pcRef.current) {
         try { pcRef.current.close(); } catch (_) {}
@@ -105,33 +126,44 @@ export default function WebRTCPlayer({ cameraId, autoPlay = true, muted = true, 
         videoRef.current.srcObject = null;
       }
     };
-  }, [cameraId]);
+  }, [cameraId, delay]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000', ...style }}>
-      {status === 'error' && (
+      {placeholderSrc && status !== 'playing' && (
+        <img 
+          src={placeholderSrc} 
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} 
+          alt="Loading..."
+        />
+      )}
+      
+      {status === 'error' && !placeholderSrc && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, gap: '8px' }}>
           <div style={{ color: '#ff4444', fontSize: '18px', fontWeight: 'bold' }}>UNABLE TO STREAM</div>
           <div style={{ color: '#888', fontSize: '12px' }}>Retrying connection...</div>
         </div>
       )}
-      {status === 'connecting' && (
+      
+      {status === 'connecting' && !placeholderSrc && (
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 10, gap: '8px' }}>
-          <div style={{ color: '#0ea5e9', fontSize: '14px' }}>Connecting to {cameraId}...</div>
-          <div style={{ width: '40px', height: '40px', border: '3px solid #333', borderTop: '3px solid #0ea5e9', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+          <div style={{ color: '#0ea5e9', fontSize: '14px' }}>Connecting...</div>
         </div>
       )}
+      
       <video
         ref={videoRef}
         autoPlay={autoPlay}
         muted={muted}
         playsInline
+        onPlaying={() => setStatus('playing')}
         style={{
           width: '100%',
           height: '100%',
           objectFit: 'cover',
-          display: status === 'error' ? 'none' : 'block'
+          display: status === 'playing' ? 'block' : 'none',
+          zIndex: 2,
+          position: 'relative'
         }}
       />
     </div>

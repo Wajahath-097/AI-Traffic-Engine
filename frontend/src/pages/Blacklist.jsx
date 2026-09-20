@@ -81,7 +81,7 @@ export default function Blacklist() {
           </div>
           <div className="form-group">
             <label>Severity</label>
-            <select value={newSeverity} onChange={e => setNewSeverity(e.target.value)} style={{ padding: '10px', borderRadius: '4px', border: '1px solid #d1d5db' }}>
+            <select value={newSeverity} onChange={e => setNewSeverity(e.target.value)}>
               <option value="critical">Critical</option>
               <option value="high">High</option>
               <option value="medium">Medium</option>

@@ -68,10 +68,6 @@ SNAPSHOT_DIR = Path(__file__).resolve().parent.parent.parent / "snapshots"
 SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
 _CAMERAS_JSON_FILE = SNAPSHOT_DIR / "cameras_cache.json"
 
-_camera_list_cache = {"data": _load_cameras_from_disk(), "ts": time.time()}
-_camera_list_lock = threading.Lock()
-_CAMERA_CACHE_TTL = 60.0  # seconds
-
 
 def _load_cameras_from_disk():
     if _CAMERAS_JSON_FILE.exists():
@@ -81,6 +77,11 @@ def _load_cameras_from_disk():
         except Exception as e:
             logger.warning(f"Could not load cameras from disk cache: {e}")
     return []
+
+
+_camera_list_cache = {"data": _load_cameras_from_disk(), "ts": time.time()}
+_camera_list_lock = threading.Lock()
+_CAMERA_CACHE_TTL = 60.0  # seconds
 
 
 def _save_cameras_to_disk(cams_data):
@@ -447,12 +448,15 @@ def _sync_capture_rtsp_frame(camera_id: str) -> bytes | None:
 
     frame = None
     try:
-        for _ in range(15):  # Grab up to 15 frames to reach a clean keyframe
+        valid_frames = 0
+        for _ in range(40):  # Grab up to 40 frames to reach a clean keyframe
             ok, f = cap.read()
             if ok and f is not None and f.size > 0:
+                valid_frames += 1
                 frame = f
-                break
-            time.sleep(0.08)
+                if valid_frames > 15: # Skip the first 15 valid frames to get past decode artifacts
+                    break
+            time.sleep(0.05)
     finally:
         cap.release()
 
@@ -552,7 +556,7 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
         rtsp_url = f"rtsp://{encoded_email}:{stream_password}@{stream_host}:8554/stream/{cid}"
 
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;3000000"
-        cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
+        cap = await asyncio.to_thread(cv2.VideoCapture, rtsp_url, cv2.CAP_FFMPEG)
 
         if not cap.isOpened():
             logger.error(f"Failed to open RTSP stream for {camera_id}")
@@ -580,21 +584,16 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
             except Exception:
                 pass
 
-        # Load YOLO detector (nano)
-        from app.ai.detection import get_yolo_detector, get_ocr_engine
-        try:
-            yolo_detector = get_yolo_detector("yolov8n")
-            ocr = get_ocr_engine() if not preview else None
-        except Exception:
-            yolo_detector = None
-            ocr = None
+        # AI detection disabled as requested by user to ensure smooth playback
+        yolo_detector = None
+        ocr = None
 
         frame_count = 0
         last_detections = []
         consecutive_fails = 0
-        INFERENCE_INTERVAL = 45 if preview else 25
-        frame_delay = 0.10 if preview else 0.05
-        jpeg_quality = 55 if preview else 70
+        # No inference means we can stream faster
+        frame_delay = 0.05 if preview else 0.033
+        jpeg_quality = 65 if preview else 80
 
         try:
             while cap.isOpened():
@@ -629,7 +628,7 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
                 # AI Inference (only if detector loaded)
                 if yolo_detector and frame_count % INFERENCE_INTERVAL == 0:
                     try:
-                        raw_dets = yolo_detector.detect_vehicles(frame)
+                        raw_dets = await asyncio.to_thread(yolo_detector.detect_vehicles, frame)
                         last_detections = raw_dets
 
                         # Save detections to DB (only in modal/full view, to preserve DB throughput)
@@ -638,14 +637,14 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
                             try:
                                 for det in last_detections:
                                     bbox = det["bbox"]
-                                    plate_region = yolo_detector.detect_plates(frame, bbox)
+                                    plate_region = await asyncio.to_thread(yolo_detector.detect_plates, frame, bbox)
                                     plate_text, plate_conf = "", 0.0
                                     if plate_region and ocr:
-                                        ocr_res = ocr.recognize_plate(frame, plate_region["bbox"])
+                                        ocr_res = await asyncio.to_thread(ocr.recognize_plate, frame, plate_region["bbox"])
                                         if ocr_res and ocr_res.get("normalized_text") and ocr_res.get("confidence", 0) > 0.85:
                                             plate_text = ocr_res["normalized_text"]
                                             plate_conf = ocr_res["confidence"]
-                                    color = yolo_detector.detect_color(frame, bbox)
+                                    color = await asyncio.to_thread(yolo_detector.detect_color, frame, bbox)
                                     try:
                                         db_s.add(VehicleDetection(
                                             camera_id=cam_db_id,
@@ -690,6 +689,79 @@ async def stream_camera(camera_id: str, request: Request, preview: int = 0):
             cap.release()
 
     return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+
+
+from fastapi import WebSocket, WebSocketDisconnect
+
+@router.websocket("/{camera_id}/ws-stream")
+async def websocket_stream_camera(websocket: WebSocket, camera_id: str, preview: int = 0):
+    """
+    WebSocket MJPEG stream. Bypasses browser HTTP/1.1 connection limits.
+    """
+    await websocket.accept()
+    
+    from app.core.config import settings
+    stream_email = settings.STREAM_EMAIL
+    stream_password = settings.STREAM_PASSWORD
+    stream_host = getattr(settings, "STREAM_HOST", "103.250.160.189")
+
+    if not (stream_email and stream_password):
+        await websocket.close()
+        return
+
+    cid = camera_id.lower()
+    encoded_email = stream_email.replace("@", "%40")
+    rtsp_url = f"rtsp://{encoded_email}:{stream_password}@{stream_host}:8554/stream/{cid}"
+
+    os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;3000000"
+    cap = await asyncio.to_thread(cv2.VideoCapture, rtsp_url, cv2.CAP_FFMPEG)
+
+    if not cap.isOpened():
+        logger.error(f"Failed to open RTSP stream for {camera_id} via WS")
+        offline = np.zeros((360, 640, 3), dtype=np.uint8)
+        cv2.putText(offline, f"{camera_id.upper()} RECONNECTING",
+                    (120, 180), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (0, 165, 255), 2)
+        _, obuf = cv2.imencode('.jpg', offline, [cv2.IMWRITE_JPEG_QUALITY, 50])
+        ob = obuf.tobytes()
+        try:
+            for _ in range(5):
+                await websocket.send_bytes(ob)
+                await asyncio.sleep(1)
+        except WebSocketDisconnect:
+            pass
+        return
+
+    frame_delay = 0.05 if preview else 0.033
+    jpeg_quality = 65 if preview else 80
+    consecutive_fails = 0
+
+    try:
+        while cap.isOpened():
+            ret, frame = await asyncio.to_thread(cap.read)
+
+            if not ret or frame is None:
+                consecutive_fails += 1
+                if consecutive_fails > 15:
+                    break
+                await asyncio.sleep(0.08)
+                continue
+
+            consecutive_fails = 0
+
+            if frame.shape[1] != 640 or frame.shape[0] != 360:
+                frame = cv2.resize(frame, (640, 360), interpolation=cv2.INTER_AREA)
+
+            ok, buf = await asyncio.to_thread(cv2.imencode, '.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, jpeg_quality])
+            if ok:
+                await websocket.send_bytes(buf.tobytes())
+
+            await asyncio.sleep(frame_delay)
+    except WebSocketDisconnect:
+        logger.info(f"Client disconnected WS for {camera_id}")
+    except Exception as e:
+        logger.error(f"WS Stream error [{camera_id}]: {e}")
+    finally:
+        cap.release()
 
 
 @router.get("/{camera_id}/live-detections")
@@ -756,8 +828,8 @@ def _warmup_camera_snapshots():
             time.sleep(30)
 
 
-# Background warmer disabled to keep backend ultra-responsive and prevent connection saturation
-# _warmer_thread = threading.Thread(target=_warmup_camera_snapshots, daemon=True, name="snap_warmer")
-# _warmer_thread.start()
+# Background warmer enabled to automatically populate camera thumbnails
+_warmer_thread = threading.Thread(target=_warmup_camera_snapshots, daemon=True, name="snap_warmer")
+_warmer_thread.start()
 
 

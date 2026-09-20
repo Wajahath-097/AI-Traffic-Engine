@@ -8,17 +8,20 @@ import './Analytics.css'
 export default function Analytics() {
   const [data, setData] = useState(null)
   const [odPatterns, setOdPatterns] = useState([])
+  const [ocrData, setOcrData] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [dashRes, odRes] = await Promise.all([
+        const [dashRes, odRes, ocrRes] = await Promise.all([
           apiGet('/api/analytics/dashboard'),
-          api.get('/api/analytics/origin-destination')
+          api.get('/api/analytics/origin-destination'),
+          apiGet('/api/analytics/ocr-accuracy')
         ])
         setData(dashRes.data)
         setOdPatterns(odRes.data.patterns)
+        setOcrData(ocrRes.data)
       } catch (error) {
         console.error("Failed to load analytics", error)
       } finally {
@@ -85,9 +88,9 @@ export default function Analytics() {
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'High Confidence Match', value: Math.round((data.total_24h || 100) * 0.85) },
-                    { name: 'Manual Review Needed', value: Math.round((data.total_24h || 100) * 0.12) },
-                    { name: 'Unreadable', value: Math.round((data.total_24h || 100) * 0.03) }
+                    { name: 'High Confidence Match', value: ocrData?.high_confidence || 0 },
+                    { name: 'Manual Review Needed', value: ocrData?.medium_confidence || 0 },
+                    { name: 'Unreadable', value: ocrData?.low_confidence || 0 }
                   ]}
                   cx="50%"
                   cy="50%"

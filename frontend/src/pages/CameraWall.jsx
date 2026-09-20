@@ -2,6 +2,60 @@ import React, { useEffect, useState, useRef } from 'react'
 import { apiGet } from '../services/api'
 import { AlertTriangle, Play, Pause, ZoomIn, ZoomOut, CheckCircle, XCircle } from 'lucide-react'
 import Layout from '../layouts/Layout'
+import WebRTCPlayer from '../components/WebRTCPlayer'
+
+function CameraGridCard({ camera, onSelect, baseUrl, index }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      { rootMargin: '200px' }
+    );
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={cardRef}
+      className="camera-card card"
+      onClick={() => onSelect(camera)}
+      style={{ cursor: 'pointer', transition: 'transform 0.2s', position: 'relative' }}
+    >
+      <div className="camera-visual" style={{ position: 'relative', background: '#0a0a0c', borderRadius: '4px 4px 0 0', overflow: 'hidden', height: '240px' }}>
+        {isVisible ? (
+          <WebRTCPlayer 
+            cameraId={camera.camera_id} 
+            placeholderSrc={`${baseUrl}/api/cameras/${camera.camera_id}/snapshot?c=1`}
+          />
+        ) : (
+          <img 
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            src={`${baseUrl}/api/cameras/${camera.camera_id}/snapshot?c=1`}
+            alt={`Snapshot for ${camera.camera_id}`}
+            loading="lazy"
+          />
+        )}
+
+        <div style={{ position: 'absolute', top: '12px', left: '12px', color: 'white', textShadow: '1px 1px 3px black', fontWeight: '600', zIndex: 20 }}>
+          {camera.camera_id}
+        </div>
+        <span id={`badge-${camera.camera_id}`} className={`status-badge ${camera.status}`} style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 20 }}>
+          {camera.status}
+        </span>
+      </div>
+      <div className="camera-info" style={{ padding: '16px 0 0' }}>
+        <h3>{camera.name}</h3>
+        <p>{camera.location || 'Unknown location'}</p>
+        <small>{camera.protocol.toUpperCase()} • {camera.enabled ? 'Enabled' : 'Disabled'}</small>
+      </div>
+    </div>
+  );
+}
 
 export default function CameraWall() {
   const [cameras, setCameras] = useState(() => {
@@ -167,51 +221,6 @@ export default function CameraWall() {
     return () => clearInterval(interval);
   }, [selectedCamera])
 
-  function CameraGridCard({ camera, onSelect, baseUrl }) {
-    return (
-      <div
-        className="camera-card card"
-        onClick={() => onSelect(camera)}
-        style={{ cursor: 'pointer', transition: 'transform 0.2s', position: 'relative' }}
-      >
-        <div className="camera-visual" style={{ position: 'relative', background: '#0a0a0c', borderRadius: '4px 4px 0 0', overflow: 'hidden', height: '240px' }}>
-          {camera.status === 'offline' ? (
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontSize: '18px', fontWeight: 'bold' }}>
-              UNABLE TO STREAM
-            </div>
-          ) : (
-            <img 
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              src={`${baseUrl}/api/cameras/${camera.camera_id}/snapshot`}
-              alt={`Snapshot for ${camera.camera_id}`}
-              loading="lazy"
-              onError={(e) => {
-                const fallback = e.target.parentElement?.querySelector('.snapshot-fallback');
-                if (fallback) fallback.style.display = 'flex';
-              }}
-            />
-          )}
-
-          <div className="snapshot-fallback" style={{ display: 'none', position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', color: '#0ea5e9', fontSize: '14px', fontStyle: 'italic', background: '#111' }}>
-            Connecting to feed...
-          </div>
-
-          <div style={{ position: 'absolute', top: '12px', left: '12px', color: 'white', textShadow: '1px 1px 3px black', fontWeight: '600', zIndex: 20 }}>
-            {camera.camera_id}
-          </div>
-          <span id={`badge-${camera.camera_id}`} className={`status-badge ${camera.status}`} style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 20 }}>
-            {camera.status}
-          </span>
-        </div>
-        <div className="camera-info" style={{ padding: '16px 0 0' }}>
-          <h3>{camera.name}</h3>
-          <p>{camera.location || 'Unknown location'}</p>
-          <small>{camera.protocol.toUpperCase()} • {camera.enabled ? 'Enabled' : 'Disabled'}</small>
-        </div>
-      </div>
-    );
-  }
-
   if (loading && cameras.length === 0) return <div className="loading">Loading camera network...</div>
 
   if (error && cameras.length === 0) {
@@ -246,12 +255,13 @@ export default function CameraWall() {
       </div>
 
       <div className="grid grid-2">
-        {cameras.map((camera) => (
+        {cameras.map((camera, index) => (
           <CameraGridCard
             key={camera.id}
             camera={camera}
             onSelect={setSelectedCamera}
             baseUrl={baseUrl}
+            index={index}
           />
         ))}
       </div>
@@ -285,32 +295,36 @@ export default function CameraWall() {
                   justifyContent: 'center' 
                 }}
               >
-                {selectedCamera.status === 'offline' ? (
-                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#555', fontSize: '24px' }}>
-                    OFFLINE - NO SIGNAL
-                  </div>
-                ) : (
-                  <>
-                    <img 
-                      key={`${selectedCamera.camera_id}-${modalStreamKey}`}
-                      src={isPlaying 
-                        ? `${baseUrl}/api/cameras/${selectedCamera.camera_id}/stream?_t=${modalStreamKey}`
-                        : `${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`
-                      }
-                      alt={`Live Stream for ${selectedCamera.camera_id}`}
-                      style={{ 
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        transform: `scale(${zoomLevel})`,
-                        transition: 'transform 0.25s ease',
-                        display: 'block'
-                      }}
-                      onError={(e) => {
-                        // Fallback gracefully to snapshot if stream reconnects
-                        e.target.src = `${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?fallback=1`;
-                      }}
-                    />
+                <>
+                  {isPlaying ? (
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      transform: `scale(${zoomLevel})`,
+                      transition: 'transform 0.25s ease',
+                    }}>
+                      <WebRTCPlayer 
+                        key={`${selectedCamera.camera_id}-${modalStreamKey}`}
+                        cameraId={selectedCamera.camera_id}
+                        style={{ objectFit: 'contain' }}
+                        placeholderSrc={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
+                      />
+                    </div>
+                  ) : (
+                      <img 
+                        key={`${selectedCamera.camera_id}-snapshot`}
+                        src={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
+                        alt={`Snapshot for ${selectedCamera.camera_id}`}
+                        style={{ 
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          transform: `scale(${zoomLevel})`,
+                          transition: 'transform 0.25s ease',
+                          display: 'block'
+                        }}
+                      />
+                    )}
 
                     {/* Controls Overlay */}
                     <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '20px', alignItems: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '10px 24px', borderRadius: '30px', zIndex: 10, border: '1px solid rgba(255,255,255,0.15)' }}>
@@ -356,41 +370,9 @@ export default function CameraWall() {
                       )}
                     </button>
                   </>
-                )}
               </div>
               
-              {/* Live Detections Sidebar */}
-              <div style={{ width: '350px', background: 'var(--color-surface)', borderLeft: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ padding: '16px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg)' }}>
-                  <h3 style={{ margin: 0, fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ display: 'inline-block', width: '8px', height: '8px', background: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }}></span>
-                    Vehicles Detected
-                  </h3>
-                </div>
-                <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {liveDetections.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: 'var(--color-text-muted)', marginTop: '40px' }}>Waiting for vehicles...</div>
-                  ) : (
-                    liveDetections.map((det) => (
-                      <div key={det.id} style={{ background: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: '8px', padding: '12px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                        <div>
-                          <div style={{ fontWeight: '600', textTransform: 'capitalize', fontSize: '15px' }}>
-                            {det.vehicle_color || ''} {det.vehicle_class || 'Vehicle'}
-                          </div>
-                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '4px' }}>
-                            {new Date(det.detected_at).toLocaleTimeString()}
-                          </div>
-                        </div>
-                        {det.plate_number && (
-                          <div style={{ background: '#facc15', color: '#000', padding: '4px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '13px', border: '1px solid #eab308' }}>
-                            {det.plate_number}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
+              {/* Live Detections Sidebar Removed as requested by User */}
             </div>
           </div>
         </div>

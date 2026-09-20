@@ -27,6 +27,7 @@ export default function Dashboard() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: "AIzaSyA6OMTdf0GLlzaZUE7S_LnpVdRVOfb3nMw",
+    version: "3.64",
     libraries: libraries,
     language: "en",
     region: "US"
@@ -115,22 +116,17 @@ export default function Dashboard() {
   const vehicleClassData = detectionStats && detectionStats.vehicle_classes ? [
     { name: 'Two Wheelers', value: detectionStats.vehicle_classes.bike ?? 0 },
     { name: 'Cars', value: detectionStats.vehicle_classes.car ?? 0 },
-    { name: 'Auto Rickshaws', value: 0 }, // Backend currently groups this in 'other'
+    { name: 'Auto Rickshaws', value: detectionStats.vehicle_classes.other ?? 0 },
     { name: 'Buses/Trucks', value: detectionStats.vehicle_classes.truck ?? 0 }
   ] : [
-    { name: 'Two Wheelers', value: Math.round(totalDetections * 0.65) },
-    { name: 'Cars', value: Math.round(totalDetections * 0.20) },
-    { name: 'Auto Rickshaws', value: Math.round(totalDetections * 0.15) },
-    { name: 'Buses/Trucks', value: Math.round(totalDetections * 0.0) }
+    { name: 'Two Wheelers', value: 0 },
+    { name: 'Cars', value: 0 },
+    { name: 'Auto Rickshaws', value: 0 },
+    { name: 'Buses/Trucks', value: 0 }
   ];
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
 
-  const zoneData = [
-    { name: 'Zone 1', volume: Math.floor(totalDetections * 0.4) },
-    { name: 'Zone 2', volume: Math.floor(totalDetections * 0.3) },
-    { name: 'Zone 3', volume: Math.floor(totalDetections * 0.2) },
-    { name: 'Zone 4', volume: Math.floor(totalDetections * 0.1) },
-  ];
+
 
   return (
     <div className="dashboard-v2">
