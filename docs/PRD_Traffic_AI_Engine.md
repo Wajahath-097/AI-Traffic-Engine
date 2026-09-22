@@ -458,8 +458,8 @@ The product must not present 100% OCR accuracy as a guaranteed result.
 ### Development
 - React/Vite frontend.
 - FastAPI backend.
-- Local development database initially allowed.
-- Dockerization recommended.
+- Local development database initially allowed (SQLite default / PostgreSQL optional).
+- Native Python and Node.js direct execution.
 
 ### Demonstration/LAN
 - Backend bound to an accessible network interface.

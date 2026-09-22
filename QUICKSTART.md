@@ -1,311 +1,280 @@
 # Quick Start Guide - Traffic AI Engine
 
-## Prerequisites
-
-- Python 3.9+ (for local development)
-- Node.js 18+ (for local frontend development)
-- PostgreSQL 13+ (or SQLite)
-
-## Setup
-
-## Quick Start (The Easy Way)
-
-### Step 1: Start the Python Backend
-Open a terminal, go to the backend folder, and run the server:
-```bash
-cd backend
-.\venv\Scripts\Activate.ps1
-python run.py
-```
-*(The backend will run on http://localhost:8000)*
-
-### Step 2: Start the Node.js Frontend
-Open a **new** terminal, go to the frontend folder, and start the UI:
-```bash
-cd frontend
-npm run dev
-```
-*(The frontend will run on http://localhost:5173)*
-
-### Step 3: Access the App!
-Click here to open the application: [http://localhost:5173/login](http://localhost:5173/login)
-
-**Default Demo Credentials:**
-- Super Admin: `superadmin` / `admin123`
-- Traffic Officer: `officer` / `officer123`
-- Control Room: `control` / `control123`
-- Analyst: `analyst` / `analyst123`
+A step-by-step guide to running the Traffic AI Engine locally using Python and Node.js.
 
 ---
-*Note: The frontend is entirely powered by Node.js, and the backend is powered by Python/FastAPI. All Node.js dependencies are contained cleanly within the `frontend/node_modules` folder.*
 
+## System Requirements
 
+- **Operating System:** Windows 10/11, macOS, or Linux
+- **Python:** 3.9+ (Python 3.10 - 3.12 recommended)
+- **Node.js:** 18.x or higher with npm
+- **Database:** SQLite (built-in, zero configuration needed) or PostgreSQL / Supabase
+- **Internet Connection:** For downloading dependencies and accessing live camera streams
+
+---
+
+## Quick Start (3 Steps)
+
+### Step 1: Start the Python Backend
+
+Open a terminal (PowerShell on Windows, or bash on Linux/macOS):
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment (if not already created)
+python -m venv venv
+
+# Activate virtual environment:
+# Windows PowerShell:
+.\venv\Scripts\Activate.ps1
+# Windows Command Prompt:
+# .\venv\Scripts\activate.bat
+# Linux/macOS:
+# source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# (Optional) Seed demo users and initial database state
+python seed_admin.py
+python seed_demo_users.py
+
+# Start backend server
+python run.py
+```
+
+> **Backend Status:** Runs at **http://localhost:8000**  
+> **Interactive API Docs (Swagger):** **http://localhost:8000/docs**  
+> **Alternative API Docs (ReDoc):** **http://localhost:8000/redoc**
+
+---
+
+### Step 2: Start the Frontend UI
+
+Open a **new separate terminal**:
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies (only needed first time)
+npm install
+
+# Start Vite development server
+npm run dev
+```
+
+> **Frontend Application:** Runs at **http://localhost:5173**
+
+---
+
+### Step 3: Log In & Explore
+
+Navigate to **http://localhost:5173/login** in your web browser.
+
+#### Demo Credentials:
+| Role | Officer ID / Username | Password | Purpose |
+|---|---|---|---|
+| **Super Admin** | `superadmin` | `admin123` | Full administrative control & user management |
+| **Traffic Officer** | `officer` | `officer123` | ANPR searches, vehicle tracking, alerts |
+| **Control Room** | `control` | `control123` | Real-time camera wall monitoring & alerts |
+| **Analyst** | `analyst` | `analyst123` | Traffic flow analysis & statistical reports |
+
+---
+
+## Application Navigation
+
+The frontend includes 8 dedicated dashboard modules accessible via the sidebar:
+
+1. **Dashboard (`/`):** Live telemetry overview, active cameras, 24-hour detection counts, and recent alert events.
+2. **Live Camera Wall (`/cameras`):** Multi-feed live CCTV grid with WebRTC (WHEP), HLS streaming, live auto-refresh snapshots, fullscreen mode, and stream status diagnostics.
+3. **Find Vehicle (`/find-vehicle`):** License plate lookup, camera detection history, snapshot evidence, speed estimations, and manual blacklist flagging.
+4. **Track Vehicle (`/track`):** Chronological multi-camera trajectory tracking that stitches vehicle movements across intersections.
+5. **Live GIS Map (`/map`):** Leaflet interactive map displaying camera positions, real-time status indicators, and geographic coverage.
+6. **Traffic Analytics (`/analytics`):** Charts for hourly traffic volume, vehicle classifications (cars, two-wheelers, trucks, buses), peak-hour congestion, and camera throughput.
+7. **Alerts & Incidents (`/alerts`):** Real-time violation alerts (blacklist match, speeding, unauthorized access) with severity tags and status workflows (New / Acknowledged / Resolved).
+8. **Blacklist Management (`/blacklist`):** Manage hotlist vehicles with plate numbers, descriptions, violation reasons, and automated matching.
+
+---
 
 ## Project Structure
 
 ```
-traffic-ai-engine/
-├── frontend/                 # React + Vite dashboard
-│   ├── src/
-│   │   ├── components/      # Reusable React components
-│   │   ├── pages/           # Page components
-│   │   ├── layouts/         # Layout components
-│   │   ├── services/        # API services
-│   │   ├── hooks/           # Custom React hooks
-│   │   ├── context/         # React context providers
-│   │   ├── assets/          # Images, fonts, etc.
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── package.json
-│   └── vite.config.js
-│
-├── backend/                  # FastAPI backend
+AI-Traffic-Engine/
+├── backend/                       # FastAPI Backend
 │   ├── app/
-│   │   ├── main.py          # FastAPI app entry point
-│   │   ├── database.py      # Database configuration
-│   │   ├── models/          # SQLAlchemy models
-│   │   ├── schemas/         # Pydantic schemas
-│   │   ├── routers/         # API route handlers
-│   │   ├── services/        # Business logic
-│   │   ├── ai/              # AI/ML processing
-│   │   ├── tracking/        # Trajectory tracking
-│   │   ├── alerts/          # Alert logic
-│   │   └── core/            # Core utilities (config, logger, etc.)
-│   ├── requirements.txt
-│   └── run.py               # Development entry point
+│   │   ├── main.py               # Application entry point & middleware
+│   │   ├── database.py           # Database connection & session factory
+│   │   ├── models/               # SQLAlchemy ORM models
+│   │   ├── schemas/              # Pydantic request/response schemas
+│   │   ├── routers/              # API routers (auth, cameras, search, etc.)
+│   │   ├── ai/                   # YOLOv8 detection & PaddleOCR recognition
+│   │   ├── tracking/             # Trajectory reconstruction logic
+│   │   └── core/                 # Security (JWT/bcrypt), configuration, logger
+│   ├── snapshots/                # Live camera frame cache (.jpg files)
+│   ├── workers/                  # Background live processor workers
+│   ├── requirements.txt          # Python package requirements
+│   ├── run.py                    # Backend server launcher
+│   ├── seed_admin.py             # Admin user seeder
+│   ├── seed_demo_users.py        # Demo role accounts seeder
+│   ├── seed_real_cameras.py      # Camera database seeder
+│   └── traffic_ai.db             # Local SQLite database
 │
-├── workers/                  # Background workers
-│   ├── camera_worker/       # Camera stream processing
-│   ├── detection_worker/    # Vehicle detection
-│   ├── ocr_worker/          # Plate recognition
-│   └── tracking_worker/     # Trajectory reconstruction
+├── frontend/                      # React 18 + Vite Frontend
+│   ├── src/
+│   │   ├── pages/                # All 9 dashboard pages
+│   │   ├── components/           # Stream players (WebRTCPlayer, HlsPlayer), cards
+│   │   ├── layouts/              # Responsive sidebar & navigation header
+│   │   ├── services/             # Axios API client
+│   │   ├── App.jsx               # App routing & protected route guard
+│   │   ├── index.css             # Design tokens & global CSS
+│   │   └── main.jsx              # React mounting point
+│   ├── package.json              # Node dependencies
+│   └── vite.config.js            # Vite configuration
 │
-├── database/                 # Database utilities
-│   ├── migrations/          # SQL migration scripts
-│   └── seed/                # Database seed data
-│
-├── docs/                     # Documentation
-│   ├── PRD_Traffic_AI_Engine.md
-│   └── TRD_Traffic_AI_Engine.md
-│
-├── .env.example             # Environment variables template
-├── .gitignore               # Git ignore rules
-└── README.md                # Project overview
+├── database/                      # SQL schema definitions
+├── docs/                          # PRD & TRD technical documents
+└── test_api.py                    # Comprehensive automated API test suite
 ```
 
-## Key Features to Implement
+---
 
-### Priority 1: Foundation
-- [ ] User authentication & authorization
-- [ ] Camera management CRUD
-- [ ] Database models for detections and events
-- [ ] Basic REST API structure
+## Completed Features Status
 
-### Priority 2: Core Functionality
-- [ ] Live camera stream ingestion (RTSP)
-- [ ] Vehicle detection (YOLOv8)
-- [ ] Plate recognition (PaddleOCR)
-- [ ] Detection persistence
+- [x] **User Authentication & Authorization (JWT + RBAC)**
+- [x] **Camera Management & Multi-Protocol Streaming (RTSP, WebRTC/WHEP, HLS, Snapshots)**
+- [x] **Database Schema & Models (SQLite / PostgreSQL with PostGIS support)**
+- [x] **Vehicle Detection (YOLOv8)**
+- [x] **License Plate Recognition (PaddleOCR)**
+- [x] **Cross-Camera Trajectory Reconstruction**
+- [x] **Automated Blacklist & Stolen Vehicle Alerting**
+- [x] **Interactive GIS Map Visualization (Leaflet)**
+- [x] **Comprehensive Traffic Analytics & Charting**
+- [x] **Responsive Modern Web Interface (React 18 + Vite)**
 
-### Priority 3: Intelligence
-- [ ] Trajectory reconstruction
-- [ ] Cross-camera matching
-- [ ] Alert engine
-- [ ] Blacklist management
+---
 
-### Priority 4: UI & Analytics
-- [ ] Frontend dashboard
-- [ ] Live camera wall
-- [ ] Vehicle search interface
-- [ ] Analytics & reporting
-- [ ] GIS visualization
-
-## API Endpoints (Implemented Structure)
+## Key API Endpoints
 
 ### Authentication
-- `POST /api/auth/login` - Login
-- `POST /api/auth/logout` - Logout
-- `POST /api/auth/register` - Register user (admin)
+- `POST /api/auth/login` - Officer login (returns JWT token and profile)
+- `POST /api/auth/logout` - Invalidate session
+- `POST /api/auth/register` - Create user account (Admin only)
+- `GET /api/auth/me` - Current authenticated user details
 
-### Cameras
-- `GET /api/cameras/` - List cameras
-- `GET /api/cameras/{camera_id}` - Get camera details
-- `POST /api/cameras/` - Add camera (admin)
-- `PUT /api/cameras/{camera_id}` - Update camera (admin)
-- `DELETE /api/cameras/{camera_id}` - Delete camera (admin)
-- `GET /api/cameras/{camera_id}/health` - Get camera health
+### Cameras & Feeds
+- `GET /api/cameras/` - List all cameras with live status
+- `GET /api/cameras/{camera_id}` - Get camera details and RTSP / WebRTC URLs
+- `POST /api/cameras/` - Add new camera (Admin)
+- `PUT /api/cameras/{camera_id}` - Update camera settings
+- `DELETE /api/cameras/{camera_id}` - Remove camera
+- `GET /api/cameras/{camera_id}/snapshot` - Get latest snapshot frame
+- `GET /api/ingest` - Sentinel-compliant stream ingest catalogue
 
-### Detection & Search
-- `GET /api/detection/detections` - Get detections
-- `GET /api/search/vehicles` - Search vehicles by plate
-- `GET /api/search/vehicles/{detection_id}/history` - Get vehicle history
+### Vehicle Detection & Search
+- `GET /api/detection/` - List detections with confidence scores
+- `GET /api/search/vehicles` - Search detections by license plate
+- `GET /api/search/history/{vehicle_id}` - Historical sightings for vehicle
 
 ### Trajectories
-- `GET /api/trajectories/` - List trajectories
-- `GET /api/trajectories/{trajectory_id}` - Get trajectory details
-- `POST /api/trajectories/reconstruct` - Reconstruct trajectory
+- `GET /api/trajectories/journeys` - List reconstructed journeys
+- `GET /api/trajectories/journey/{id}` - Journey details with chronological sequence
+- `GET /api/trajectories/map-data` - Geospatial coordinates for GIS mapping
 
-### Alerts
-- `GET /api/alerts/` - List alerts
-- `GET /api/alerts/{alert_id}` - Get alert details
-- `PUT /api/alerts/{alert_id}/status` - Update alert status
+### Alerts & Blacklist
+- `GET /api/alerts/` - List active alerts
+- `PUT /api/alerts/{id}` - Update alert status (acknowledged/resolved)
+- `GET /api/blacklist/` - List blacklisted plates
+- `POST /api/blacklist/` - Add vehicle to blacklist
 
 ### Analytics
-- `GET /api/analytics/dashboard` - Dashboard metrics
-- `GET /api/analytics/detections` - Detection analytics
-- `GET /api/analytics/traffic-patterns` - Traffic patterns
+- `GET /api/analytics/dashboard` - High-level metrics for dashboard cards
+- `GET /api/analytics/detections/by-camera` - Camera throughput
+- `GET /api/analytics/patterns` - Traffic flow patterns
 
-### Administration
-- `GET /api/admin/users` - List users (admin)
-- `POST /api/admin/users` - Create user (admin)
-- `GET /api/admin/audit-logs` - Audit logs (admin)
-- `GET /api/admin/blacklist` - Blacklist (admin)
-- `POST /api/admin/blacklist` - Add to blacklist (admin)
+---
 
-## Development Workflow
+## Automated Verification
 
-1. **Start with Backend Implementation**
-   - Implement database models
-   - Create authentication middleware
-   - Build core API endpoints
-   - Test with Postman/Insomnia
-
-2. **Implement AI Pipeline**
-   - Setup frame capture from cameras
-   - Integrate YOLOv8 for detection
-   - Implement PaddleOCR
-   - Add confidence scoring & re-checking
-
-3. **Build Frontend**
-   - Create login page & auth flow
-   - Implement dashboard
-   - Build camera wall component
-   - Add search interface
-
-4. **Connect & Test**
-   - Wire frontend to backend APIs
-   - Test end-to-end workflows
-   - Performance testing with 10 cameras
-   - Load testing
-
-## Configuration
-
-### Environment Variables
-
-See `.env.example` for all available settings:
+Run the test suite from the repository root to validate all API endpoints:
 
 ```bash
-# Important variables to configure:
-DATABASE_URL=postgresql://user:password@localhost:5432/traffic_ai
-SECRET_KEY=your-secure-key
-FASTAPI_DEBUG=false  # Set to false in production
-CORS_ORIGINS=["https://yourdomain.com"]
-KAFKA_BROKER_URL=kafka:9092
+# Make sure backend is running on port 8000, then run:
+python test_api.py
 ```
 
-## Running Tests
+Expected output:
+```
+[INFO] === TESTING AUTHENTICATION ===
+  [PASS] POST /auth/login - Logged in as superadmin (Super Admin)
+  [PASS] GET /auth/me - Current officer: superadmin
+...
+[INFO] ALL CORE API TESTS PASSED SUCCESSFULLY!
+```
 
-### Backend
+---
+
+## Configuration (`backend/.env`)
+
+Configuration can be tuned in `backend/.env` (defaults are pre-configured):
+
 ```bash
-cd backend
-pytest tests/ -v
+# Environment
+FASTAPI_ENV=development
+FASTAPI_DEBUG=true
+FASTAPI_HOST=0.0.0.0
+FASTAPI_PORT=8000
+
+# Database (Default: SQLite local database file)
+DATABASE_URL=sqlite:///./traffic_ai.db
+# Or use PostgreSQL / Supabase:
+# DATABASE_URL=postgresql://user:password@host:5432/traffic_ai
+
+# Security
+SECRET_KEY=your-secret-key-change-in-production
+JWT_EXPIRATION_HOURS=24
+
+# CORS
+CORS_ORIGINS=["http://localhost:5173","http://localhost:3000"]
+
+# AI Models
+YOLO_MODEL=yolov8n
+OCR_ENGINE=paddleocr
+
+# Sentinel Streaming Feeds (Live cameras)
+STREAM_EMAIL=your_email@example.com
+STREAM_PASSWORD=your_stream_key
+STREAM_HOST=103.250.160.189
 ```
 
-### Frontend
-```bash
-cd frontend
-npm test
-```
-
-## Deployment
-
-### Local Deployment
-```bash
-# Start backend in one terminal
-cd backend
-.\venv\Scripts\Activate.ps1
-python run.py
-
-# Start frontend in another terminal
-cd frontend
-npm run dev
-```
-
-### Accessing the Application
-
-Once both servers are running, you can access the application using the following links:
-
-- **Frontend Application (Login):** [http://localhost:5173/login](http://localhost:5173/login)
-- **Backend API Base URL:** [http://localhost:8000](http://localhost:8000)
-- **API Documentation (Swagger UI):** [http://localhost:8000/docs](http://localhost:8000/docs)
-- **API Documentation (ReDoc):** [http://localhost:8000/redoc](http://localhost:8000/redoc)
-
-### Production Deployment
-1. Use production database (managed PostgreSQL)
-2. Set SECRET_KEY to secure random value
-3. Disable DEBUG mode
-4. Use HTTPS with valid certificates
-5. Configure CORS for your domain
-6. Setup Redis for caching
-7. Use Nginx reverse proxy
+---
 
 ## Troubleshooting
 
-### Database Connection Issues
+### Port 8000 or 5173 is already in use
+- Check what process is using the port:
+  ```powershell
+  # On Windows PowerShell:
+  Get-Process -Id (Get-NetTCPConnection -LocalPort 8000).OwningProcess
+  ```
+- Or terminate the old process:
+  ```powershell
+  Stop-Process -Id <PID> -Force
+  ```
+
+### Database reset
+To reset the SQLite database to clean state:
 ```bash
-# Ensure PostgreSQL is running on your system
-# Or ensure SQLite database file exists in backend folder
+cd backend
+python reset_db.py
+python seed_admin.py
+python seed_demo_users.py
+python seed_real_cameras.py
 ```
 
-### Backend API Not Responding
-```bash
-# Check backend console output for errors
-
-# Check if port 8000 is in use
-netstat -an | grep 8000
-```
-
-### Frontend Build Issues
-```bash
-# Clear cache and reinstall
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-```
-
-## Next Steps
-
-1. **Review and modify** the database schema if needed
-2. **Implement authentication** with JWT tokens
-3. **Setup camera management** interface
-4. **Integrate RTSP stream** from real cameras or RTSP test server
-5. **Implement vehicle detection** with YOLOv8
-6. **Add OCR processing** with confidence scoring
-7. **Build trajectory reconstruction** algorithm
-8. **Create dashboard visualizations**
-
-## Support & Documentation
-
-- See `docs/PRD_Traffic_AI_Engine.md` for feature requirements
-- See `docs/TRD_Traffic_AI_Engine.md` for technical architecture
-- Check API documentation at `http://localhost:8000/docs` (Swagger UI)
-- Review code comments for implementation notes
-
-## Git Workflow
-
-```bash
-# Initial commit
-git init
-git add .
-git commit -m "Initial Traffic AI Engine project scaffold"
-
-# Feature branches
-git checkout -b feature/authentication
-# ... make changes ...
-git commit -m "Implement JWT authentication"
-git push origin feature/authentication
-
-# Create pull request on GitHub for review
-```
-
-Good luck with your Traffic AI Engine implementation! 🚀
+### Camera feed snapshot loading
+- The system automatically serves cached snapshots from `backend/snapshots/` when live WebRTC or RTSP feeds are buffering or offline.
+- Run `python backend/check_cams.py` to test live camera connectivity.

@@ -93,7 +93,7 @@ Camera Workers → Kafka → AI Consumers → PostgreSQL
 | Simulation | SUMO |
 | Auth | JWT or secure server-side session |
 | Reverse proxy | Nginx or equivalent |
-| Packaging | Docker / Docker Compose |
+| Packaging | Native Python venv + Node.js (Vite) |
 | Source control | Git |
 
 ---
@@ -131,27 +131,24 @@ traffic-ai-engine/
 │   │   ├── tracking/
 │   │   ├── alerts/
 │   │   └── core/
+│   ├── workers/
+│   │   ├── live_processor.py
+│   │   └── video_processor.py
+│   ├── scripts/
+│   ├── snapshots/
+│   ├── traffic_ai.db
 │   ├── requirements.txt
 │   └── run.py
-│
-├── workers/
-│   ├── camera_worker/
-│   ├── detection_worker/
-│   ├── ocr_worker/
-│   └── tracking_worker/
 │
 ├── media/
 │   └── mediamtx/
 │
 ├── database/
-│   ├── migrations/
-│   └── seed/
+│   └── migrations/
 │
-├── docker/
-├── scripts/
 ├── docs/
 ├── .env.example
-├── docker-compose.yml
+├── test_api.py
 └── README.md
 ```
 
@@ -807,23 +804,24 @@ Never commit real secrets.
 
 ---
 
-## 22. Docker Deployment
+## 22. Deployment Architecture (Native & Production)
 
-Recommended services:
+Core runtime components:
 
 ```text
-frontend
-backend
-postgres
-mediamtx
-kafka
-zookeeper/kraft-controller
-ai-worker
+frontend (Vite / React 18 on port 5173 or Nginx static bundle)
+backend (FastAPI / Uvicorn ASGI on port 8000)
+database (SQLite traffic_ai.db or PostgreSQL / Supabase)
+camera streams (RTSP / WebRTC / HLS / Snapshots)
+ai-worker (YOLOv8 + PaddleOCR processing loop)
 ```
 
-For an initial development profile, Kafka can be disabled while direct event processing is used.
+The system is optimized for direct native execution:
+- **Backend:** `python run.py` (FastAPI/Uvicorn)
+- **Frontend:** `npm run dev` (Vite)
+- **Database:** Automatic SQLite initialization on startup (zero external configuration required)
 
-For the SIH demo, a single powerful machine can host the complete stack if GPU/CPU capacity is sufficient.
+For the SIH demonstration, a single local developer machine runs the entire stack smoothly.
 
 ---
 
@@ -1143,7 +1141,7 @@ production
 - analytics
 
 ### Phase 7 — Deployment
-- Docker
+- Native local deployment
 - LAN access
 - HTTPS/cloud deployment
 - monitoring

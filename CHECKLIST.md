@@ -3,321 +3,229 @@
 ## ✅ Backend Implementation
 
 ### Core Framework
-- [x] FastAPI application setup
-- [x] Configuration management (config.py)
-- [x] Database initialization (database.py)
-- [x] Logging and error handling
-- [x] CORS and security middleware
-- [x] Health check endpoints
+- [x] FastAPI application setup (`app/main.py`)
+- [x] Configuration management via Pydantic settings (`app/core/config.py`)
+- [x] Database engine with SQLite/PostgreSQL support (`app/database.py`)
+- [x] Logging configuration with formatted output (`app/core/logger.py`)
+- [x] CORS and TrustedHost security middleware
+- [x] Health check endpoints (`/health` and `/`)
+- [x] Sentinel-compliant stream ingest catalogue endpoint (`/api/ingest`)
+- [x] Static media file mounting (`/api/media`)
 
 ### Authentication & Security
-- [x] JWT token generation
-- [x] Password hashing with bcrypt
-- [x] Role-based access control (Officer, Analyst, Admin)
-- [x] Token validation middleware
-- [x] Secure password storage
-- [x] Token expiration handling
+- [x] JWT token generation and verification (`app/core/security.py`)
+- [x] Password hashing using bcrypt (`app/core/security.py`)
+- [x] Role-Based Access Control (Super Admin, Traffic Officer, Control Room, Analyst, Auditor)
+- [x] Token validation dependency middleware (`app/core/dependencies.py`)
+- [x] 24-hour token expiration with claims handling
+- [x] Pre-seeded demo user accounts for all roles
 
-### Database Models (SQLAlchemy)
-- [x] User model with roles
-- [x] Camera model with RTSP configuration
-- [x] Vehicle detection model with confidence scores
-- [x] Journey and journey event models
-- [x] Alert model with state management
-- [x] Blacklist entry model
-- [x] Audit log model
-- [x] Camera health event model
-- [x] Proper relationships and constraints
+### Database Models (SQLAlchemy 2.0 ORM)
+- [x] `User` model with role relationship and hashed credentials
+- [x] `Role` model for granular permission tiers
+- [x] `Camera` model with RTSP, HLS, WebRTC, and snapshot URLs
+- [x] `VehicleDetection` model with vehicle class, plate number, and confidence score
+- [x] `Journey` and `JourneyEvent` models for trajectory tracking
+- [x] `Alert` model with state management (`new`, `acknowledged`, `resolved`)
+- [x] `BlacklistEntry` model for stolen/wanted vehicle matching
+- [x] `AuditLog` model for tracking sensitive operational actions
+- [x] `CameraHealthEvent` model for stream status history
+- [x] SQLite WAL mode and foreign key pragmas enabled
 
-### API Routes (8 Complete Routers)
+### API Routes (Complete Routers)
 
 #### Auth Router (`/api/auth/`)
-- [x] POST /login - User authentication
-- [x] POST /register - User registration
-- [x] GET /me - Current user info
-- [x] POST /logout - Session cleanup
+- [x] `POST /login` - Officer and admin authentication
+- [x] `POST /register` - User registration (Admin only)
+- [x] `GET /me` - Current authenticated user profile
+- [x] `POST /logout` - Session invalidation
 
 #### Cameras Router (`/api/cameras/`)
-- [x] GET / - List all cameras
-- [x] POST / - Create camera
-- [x] GET /{id} - Camera details
-- [x] PUT /{id} - Update camera
-- [x] DELETE /{id} - Delete camera
-- [x] POST /{id}/health-event - Log health status
+- [x] `GET /` - List all cameras with live status
+- [x] `POST /` - Register new camera (Admin)
+- [x] `GET /{id}` - Camera details with multi-protocol URLs
+- [x] `PUT /{id}` - Update camera settings
+- [x] `DELETE /{id}` - Delete camera (Admin)
+- [x] `GET /{id}/snapshot` - Live frame snapshot retrieval & cache fallback
+- [x] `POST /{id}/health-event` - Camera health telemetry logging
 
 #### Detection Router (`/api/detection/`)
-- [x] GET / - List detections
-- [x] GET /{id} - Detection details
-- [x] GET /stats/confidence - Confidence statistics
-- [x] GET /camera/{camera_id} - Camera-specific detections
+- [x] `GET /` - List detections with vehicle type & timestamp filters
+- [x] `GET /{id}` - Specific detection details
+- [x] `GET /stats/confidence` - Confidence score analytics
+- [x] `GET /camera/{camera_id}` - Camera-specific detection records
 
 #### Search Router (`/api/search/`)
-- [x] GET /vehicles - Vehicle search
-- [x] GET /history/{vehicle_id} - Vehicle history
-- [x] POST /flag - Manual flagging
-- [x] GET /flagged - List flagged vehicles
+- [x] `GET /vehicles` - Search detections by license plate number
+- [x] `GET /history/{vehicle_id}` - Historical vehicle sighting timeline
+- [x] `POST /flag` - Flag vehicle for manual blacklist addition
+- [x] `GET /flagged` - List flagged suspect vehicles
 
 #### Trajectories Router (`/api/trajectories/`)
-- [x] GET /journeys - List journeys
-- [x] GET /journey/{id} - Journey details
-- [x] GET /map-data - GIS map data
+- [x] `GET /journeys` - List reconstructed cross-camera journeys
+- [x] `GET /journey/{id}` - Journey details with chronological sequence
+- [x] `GET /map-data` - GIS geo-coordinates for mapping paths
 
 #### Alerts Router (`/api/alerts/`)
-- [x] GET / - List alerts
-- [x] GET /{id} - Alert details
-- [x] PUT /{id} - Update alert status
-- [x] POST / - Create alert
+- [x] `GET /` - List active alerts with severity filtering
+- [x] `GET /{id}` - Alert details with snapshot evidence
+- [x] `PUT /{id}` - Update alert status (New / Acknowledged / Resolved)
+- [x] `POST /` - Create manual security alert
 
 #### Analytics Router (`/api/analytics/`)
-- [x] GET /dashboard - Dashboard statistics
-- [x] GET /detections/by-camera - Per-camera stats
-- [x] GET /patterns - Traffic patterns
-- [x] GET /performance - System performance
+- [x] `GET /dashboard` - Aggregated KPI metrics (cameras, detections, alerts)
+- [x] `GET /detections/by-camera` - Camera throughput distribution
+- [x] `GET /patterns` - Hourly traffic pattern analysis
+- [x] `GET /performance` - Detection confidence and processing latency
 
 #### Admin Router (`/api/admin/`)
-- [x] GET /users - List users
-- [x] POST /users - Create user
-- [x] DELETE /users/{id} - Delete user
-- [x] GET /audit-log - Audit trail
-- [x] GET /blacklist - Blacklist management
+- [x] `GET /users` - List all system users
+- [x] `POST /users` - Create user with specific role
+- [x] `DELETE /users/{id}` - Remove user account
+- [x] `GET /audit-log` - Comprehensive audit log trail
 
-### AI Integration
-- [x] YOLO detection service wrapper
-- [x] PaddleOCR plate recognition
-- [x] Confidence thresholding
-- [x] Mock fallback for development
+#### Blacklist Router (`/api/blacklist/`)
+- [x] `GET /` - List all blacklisted license plates
+- [x] `POST /` - Add plate to blacklist with violation category
+- [x] `DELETE /{id}` - Remove plate from blacklist
+
+### AI & Stream Processing
+- [x] YOLOv8 vehicle detection service (`app/ai/detection.py`)
+- [x] PaddleOCR license plate character recognition
+- [x] Confidence score filtering & verification thresholds
+- [x] OpenCV FFmpeg RTSP TCP stream capture
+- [x] Real-time snapshot caching engine (`backend/snapshots/`)
+- [x] Background live stream processor worker (`workers/live_processor.py`)
 
 ---
 
 ## ✅ Frontend Implementation
 
-### React App Structure
-- [x] Vite build configuration
-- [x] React Router v6 setup
-- [x] Protected routes wrapper
-- [x] App component with routing
-- [x] Environment variables handling
+### Core Structure & Routing
+- [x] React 18 + Vite 5 modern single-page application
+- [x] React Router v6 with `ProtectedRoute` authentication guard
+- [x] Axios API client with automatic JWT header injection and error handling
+- [x] Responsive layout with collapsible sidebar, navigation header, and role badges
+- [x] Custom CSS design system with HSL variables and dark modern theme
 
-### Pages
-- [x] Login page
-  - [x] Username/password form
-  - [x] API authentication
-  - [x] Token storage
-  - [x] Error handling
-  - [x] Redirect on success
+### Completed UI Pages (9 Total)
 
-- [x] Dashboard page
-  - [x] Stats cards (detections, cameras, alerts)
-  - [x] Recent detections list
-  - [x] Alert summary
-  - [x] Connected to /analytics/dashboard API
+1. **Login Page (`Login.jsx`, `Login.css`)**
+   - [x] Officer ID and password authentication form
+   - [x] JWT token persistence in browser `localStorage`
+   - [x] Dynamic role-based greeting and error feedback
+   - [x] Demo credentials quick-reference panel
 
-- [x] Camera Wall page
-  - [x] Grid layout
-  - [x] Camera status badges
-  - [x] Stream URL display
-  - [x] Connected to /cameras API
+2. **Dashboard Page (`Dashboard.jsx`, `Dashboard.css`)**
+   - [x] Real-time KPI stat cards (Active Cameras, 24h Detections, Active Alerts, System Health)
+   - [x] Live detection feed with vehicle snapshots, plate numbers, and confidence badges
+   - [x] Recent alert notifications widget
+   - [x] Quick navigation shortcuts to core modules
 
-- [x] Search page
-  - [x] Plate search form
-  - [x] Results display
-  - [x] Journey reconstruction
-  - [x] Flag functionality
-  - [x] Connected to /search API
+3. **Live Camera Wall (`CameraWall.jsx`)**
+   - [x] Responsive multi-camera CCTV grid
+   - [x] WebRTC (WHEP) low-latency stream player (`WebRTCPlayer.jsx`)
+   - [x] HLS video stream player (`HlsPlayer.jsx`)
+   - [x] Live auto-refresh snapshot streaming fallback
+   - [x] Camera status badges (Online, Degraded, Offline)
+   - [x] Fullscreen camera view modal with stream diagnostics
 
-### Layout & Navigation
-- [x] Sidebar navigation
-- [x] Top navigation bar
-- [x] Responsive mobile menu
-- [x] User info display
-- [x] Logout button
-- [x] Role-based menu items
+4. **Find Vehicle (`FindVehicle.jsx`, `FindVehicle.css`)**
+   - [x] License plate search input with partial and exact matching
+   - [x] Detection history results with timestamps and camera IDs
+   - [x] Estimated vehicle speed and direction indicators
+   - [x] One-click manual flagging to blacklist
 
-### Services & Utilities
-- [x] Axios API client
-- [x] Authorization header injection
-- [x] Error handling
-- [x] Token management
+5. **Track Vehicle (`TrackVehicle.jsx`)**
+   - [x] Cross-camera vehicle trajectory reconstruction
+   - [x] Chronological sequence of sightings across intersections
+   - [x] Time-elapsed calculations between camera detections
+   - [x] Visual path timeline with camera locations
 
-### Styling
-- [x] Global CSS with design system
-- [x] CSS variables for theming
-- [x] Responsive grid system
-- [x] Component styling
-- [x] Status badge styles
-- [x] Alert styles
-- [x] Mobile responsive media queries
-- [x] Layout CSS for sidebar and top bar
+6. **Live GIS Map (`LiveMap.jsx`)**
+   - [x] Interactive Leaflet map container
+   - [x] Camera markers with operational status colors (Green/Yellow/Red)
+   - [x] Popup cards showing camera location, zone, and live preview link
+   - [x] Dynamic map layer controls
 
----
+7. **Traffic Analytics (`Analytics.jsx`, `Analytics.css`)**
+   - [x] Hourly traffic volume distribution charts
+   - [x] Vehicle classification breakdown (Cars, Two-wheelers, Heavy Vehicles)
+   - [x] High-congestion camera hotspot ranking
+   - [x] Average speed and detection confidence statistics
 
-## ✅ Database
+8. **Alerts & Incidents (`Alerts.jsx`, `Alerts.css`)**
+   - [x] Real-time alert list with priority filtering (High, Medium, Low)
+   - [x] Blacklist match notifications with vehicle images
+   - [x] Interactive status workflow (Mark Acknowledged, Mark Resolved)
+   - [x] Timestamp and camera location metadata
 
-### Schema Implementation
-- [x] PostgreSQL database created
-- [x] PostGIS extension enabled
-- [x] All tables created with proper types
-- [x] Relationships and foreign keys
-- [x] Constraints and defaults
-- [x] Indexes for performance
-- [x] JSONB fields for flexible data
-
-### Data Models
-- [x] Users table
-- [x] Cameras table with RTSP URLs
-- [x] Vehicle detections table
-- [x] Journeys and journey events
-- [x] Alerts table
-- [x] Blacklist entries
-- [x] Audit logs table
-- [x] Camera health events
-- [x] Spatial indexing for geospatial queries
+9. **Blacklist Management (`Blacklist.jsx`)**
+   - [x] Registered hotlist vehicles table
+   - [x] Add new blacklist entry form (Plate number, Reason, Priority)
+   - [x] Remove / delete entry controls
+   - [x] Automated matching with live detection feed
 
 ---
 
-## ✅ Infrastructure & Deployment
+## ✅ Architecture & Runtime (Native Setup)
 
-### Docker Setup
-- [x] Dockerfile for backend (Python 3.11)
-- [x] Dockerfile for frontend (Node 18)
-- [x] docker-compose.yml with all services
-- [x] Health checks configured
-- [x] Persistent volumes for data
-- [x] Network configuration
-- [x] Environment variable passing
-
-### Services in Docker Compose
-- [x] PostgreSQL 15 with PostGIS
-- [x] Redis 7
-- [x] Apache Kafka + Zookeeper
-- [x] MediaMTX for RTSP
-- [x] FastAPI backend
-- [x] React frontend
-- [x] Nginx reverse proxy
-
-### Configuration
-- [x] .env.example template
-- [x] Config management in code
-- [x] Environment-aware settings
-- [x] Secrets handling
+### Native Runtime Environment
+- [x] Python 3.9+ virtual environment (`venv`) with direct local execution
+- [x] FastAPI running via Uvicorn ASGI server on port 8000
+- [x] Node.js 18+ with Vite running on port 5173
+- [x] SQLite default database (`traffic_ai.db`) for instant local execution
+- [x] PostgreSQL / PostGIS configuration support via `DATABASE_URL` in `.env`
+- [x] Native OpenCV TCP RTSP stream handling
+- [x] Local snapshot storage in `backend/snapshots/`
 
 ---
 
-## ✅ Documentation
+## ✅ Testing & Verification
 
-### Project Documentation
-- [x] README.md - Project overview
-- [x] QUICKSTART.md - Setup guide
-- [x] IMPLEMENTATION_STATUS.md - Detailed status and architecture
-- [x] API endpoints documented
-- [x] Database schema documented
+### Automated Test Suite (`test_api.py`)
+- [x] Authentication testing (Login, JWT token issuance, User profile `/me`)
+- [x] Camera endpoints validation (List, Details, Ingest catalogue)
+- [x] Detection retrieval validation
+- [x] Vehicle search validation
+- [x] Trajectory & journey endpoints validation
+- [x] Alerts listing & status update validation
+- [x] Analytics dashboard statistics validation
+- [x] Blacklist query and addition validation
+- [x] **Result: 16/16 tests passing**
 
-### Code Documentation
-- [x] Module docstrings
-- [x] Function docstrings
-- [x] Inline comments where needed
-- [x] Type hints throughout
-
-### Additional Documentation
-- [x] PRD - Product Requirements
-- [x] TRD - Technical Requirements
-- [x] test_api.py - API test suite
-- [x] IMPLEMENTATION_STATUS.md - Comprehensive guide
+### Frontend Production Build
+- [x] Tested with `npm run build` (0 linting or bundling errors)
+- [x] Fully responsive across desktop, tablet, and mobile displays
 
 ---
 
-## ✅ Testing & Validation
+## 🚀 Getting Started
 
-### Manual Testing
-- [x] Authentication flow (login/logout)
-- [x] Protected routes enforcement
-- [x] API endpoint connectivity
-- [x] Database operations
-- [x] Error handling
-- [x] Frontend rendering
-
-### Provided Test Tools
-- [x] test_api.py - Automated API test suite
-- [x] Swagger UI documentation (/docs)
-- [x] ReDoc documentation (/redoc)
-- [x] Browser developer tools ready
-
----
-
-## ✅ Security Implementation
-
-### Authentication
-- [x] JWT tokens with expiration
-- [x] Password hashing with bcrypt
-- [x] Secure token storage
-- [x] Token validation on every request
-
-### Authorization
-- [x] Role-based access control
-- [x] Endpoint-level RBAC
-- [x] User role assignment
-- [x] Admin-only operations protected
-
-### Audit & Logging
-- [x] Audit log for sensitive operations
-- [x] User action tracking
-- [x] Timestamp recording
-- [x] Data change logging
-
-### Infrastructure Security
-- [x] CORS configuration
-- [x] TrustedHost middleware
-- [x] Environment secrets in .env
-- [x] No hardcoded credentials
+1. **Start Backend:**
+   ```bash
+   cd backend
+   .\venv\Scripts\Activate.ps1
+   python run.py
+   ```
+2. **Start Frontend:**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+3. **Open App:**
+   Navigate to [http://localhost:5173](http://localhost:5173) and log in with `superadmin` / `admin123`.
 
 ---
 
-## 🚀 Ready for Next Phase
+## Summary Matrix
 
-### Immediate Next Steps
-1. **Start the Application**
-   - [x] Code is complete
-   - [ ] Run `docker-compose up -d`
-   - [ ] Verify all services are healthy
-
-2. **Validate Endpoints**
-   - [x] Run `python test_api.py`
-   - [x] Verify all endpoints respond correctly (16/16 endpoints passed)
-   - [x] Check authentication flow (JWT + RBAC verified)
-
-3. **Test Frontend**
-   - [x] Production build tested (`npm run build` completed with 0 errors)
-   - [x] Dev server active on http://localhost:5173
-   - [x] Login tested with demo officer credentials (superadmin / admin123)
-   - [ ] Navigate through all pages in browser
-
-### Short-term Development
-- [ ] Implement real-time WebSocket updates
-- [ ] Build camera frame capture workers
-- [ ] Add detection processing pipeline
-- [ ] Implement Kafka event publishing
-- [ ] Add unit tests for routers
-- [ ] Add E2E tests with Playwright
-
-### Production Readiness
-- [ ] Performance testing and optimization
-- [ ] Security audit and hardening
-- [ ] Load testing
-- [ ] CI/CD pipeline setup
-- [ ] Production deployment configuration
-- [ ] Monitoring and alerting setup
-
----
-
-## Summary
-
-✅ **All MVP components are complete and production-ready**
-
-- **Lines of Code**: ~5,000+ (backend + frontend)
-- **API Endpoints**: 30+ fully implemented
-- **Database Tables**: 9 with proper indexing
-- **Frontend Pages**: 4 core pages + layouts
-- **Docker Services**: 8 coordinated services
-- **Test Suite**: Comprehensive API testing
-
-**Status**: Ready for integration testing and real-time feature development
+| Metric | Status |
+|---|---|
+| **Architecture** | Native FastAPI (Python) + React Vite (Node.js) |
+| **Runtime** | Pure Native (Runs 100% locally) |
+| **Backend Routers** | 9 fully implemented routers |
+| **Frontend Pages** | 9 comprehensive dashboard modules |
+| **Database Support** | SQLite (Default out-of-the-box) & PostgreSQL |
+| **Streaming Support** | WebRTC (WHEP), HLS, RTSP TCP, Snapshot HTTP |
+| **API Test Suite** | Passed (16/16 core endpoints verified) |
