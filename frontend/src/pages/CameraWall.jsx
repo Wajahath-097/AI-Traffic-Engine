@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { apiGet } from '../services/api'
 import { AlertTriangle, Play, Pause, ZoomIn, ZoomOut, CheckCircle, XCircle } from 'lucide-react'
 import Layout from '../layouts/Layout'
@@ -38,6 +38,7 @@ function CameraGridCard({ camera, onSelect, baseUrl, index }) {
             cameraId={camera.camera_id}
             placeholderSrc={snapshotUrl}
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            noFallback={true}
           />
         ) : (
           <img 
@@ -45,6 +46,7 @@ function CameraGridCard({ camera, onSelect, baseUrl, index }) {
             src={snapshotUrl}
             alt={`Snapshot for ${camera.camera_id}`}
             loading="lazy"
+            onError={(e) => { e.target.style.display = 'none'; }}
           />
         )}
 
@@ -85,6 +87,12 @@ export default function CameraWall() {
   const [modalStreamKey, setModalStreamKey] = useState(Date.now())
   const [isFullscreen, setIsFullscreen] = useState(false)
   const videoContainerRef = useRef(null)
+
+  // Pan state for zoom drag
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+  const panStart = useRef({ x: 0, y: 0 });
 
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -211,6 +219,7 @@ export default function CameraWall() {
       setModalStreamKey(Date.now());
       setIsPlaying(true);
       setZoomLevel(1);
+      setPanOffset({ x: 0, y: 0 });
 
       const fetchDetections = async () => {
         try {
@@ -228,6 +237,61 @@ export default function CameraWall() {
     }
     return () => clearInterval(interval);
   }, [selectedCamera])
+
+  // Reset pan when zoom resets to 1
+  useEffect(() => {
+    if (zoomLevel <= 1) {
+      setPanOffset({ x: 0, y: 0 });
+    }
+  }, [zoomLevel]);
+
+  // --- Drag-to-pan handlers for zoomed view ---
+  const handleMouseDown = useCallback((e) => {
+    if (zoomLevel <= 1) return;
+    e.preventDefault();
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    panStart.current = { ...panOffset };
+  }, [zoomLevel, panOffset]);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging.current || zoomLevel <= 1) return;
+    e.preventDefault();
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    // Limit pan to prevent going too far off-screen
+    const maxPan = (zoomLevel - 1) * 50; // percentage
+    const newX = Math.max(-maxPan, Math.min(maxPan, panStart.current.x + (dx / 5)));
+    const newY = Math.max(-maxPan, Math.min(maxPan, panStart.current.y + (dy / 5)));
+    setPanOffset({ x: newX, y: newY });
+  }, [zoomLevel]);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  // Touch support for drag-to-pan
+  const handleTouchStart = useCallback((e) => {
+    if (zoomLevel <= 1 || e.touches.length !== 1) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    panStart.current = { ...panOffset };
+  }, [zoomLevel, panOffset]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isDragging.current || zoomLevel <= 1) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - dragStart.current.x;
+    const dy = e.touches[0].clientY - dragStart.current.y;
+    const maxPan = (zoomLevel - 1) * 50;
+    const newX = Math.max(-maxPan, Math.min(maxPan, panStart.current.x + (dx / 5)));
+    const newY = Math.max(-maxPan, Math.min(maxPan, panStart.current.y + (dy / 5)));
+    setPanOffset({ x: newX, y: newY });
+  }, [zoomLevel]);
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false;
+  }, []);
 
   if (loading && cameras.length === 0) return <div className="loading">Loading camera network...</div>
 
@@ -304,46 +368,40 @@ export default function CameraWall() {
                 }}
               >
                 <div 
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseUp}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                   style={{ 
                     width: '100%', 
                     height: '100%', 
-                    transform: `scale(${zoomLevel})`, 
-                    transition: 'transform 0.25s ease',
+                    transform: `scale(${zoomLevel}) translate(${panOffset.x}%, ${panOffset.y}%)`, 
+                    transition: isDragging.current ? 'none' : 'transform 0.25s ease',
                     position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    cursor: zoomLevel > 1 ? (isDragging.current ? 'grabbing' : 'grab') : 'default',
+                    userSelect: 'none'
                   }}
                 >
-                  {isPlaying ? (
-                    <WebRTCPlayer
-                      key={`${selectedCamera.camera_id}-${modalStreamKey}`}
-                      cameraId={selectedCamera.camera_id}
-                      placeholderSrc={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
-                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <img 
-                      key={`${selectedCamera.camera_id}-snapshot`}
-                      src={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
-                      alt={`Snapshot for ${selectedCamera.camera_id}`}
-                      style={{ 
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        display: 'block'
-                      }}
-                    />
-                  )}
+                  {/* Always keep WebRTCPlayer mounted - use isPaused to pause/resume */}
+                  <WebRTCPlayer
+                    key={`${selectedCamera.camera_id}-${modalStreamKey}`}
+                    cameraId={selectedCamera.camera_id}
+                    placeholderSrc={`${baseUrl}/api/cameras/${selectedCamera.camera_id}/snapshot?c=1`}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    isPaused={!isPlaying}
+                  />
                 </div>
 
                     {/* Controls Overlay */}
                     <div style={{ position: 'absolute', bottom: '20px', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '20px', alignItems: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', padding: '10px 24px', borderRadius: '30px', zIndex: 10, border: '1px solid rgba(255,255,255,0.15)' }}>
                       <button 
-                        onClick={() => { 
-                          if (!isPlaying) setModalStreamKey(Date.now());
-                          setIsPlaying(!isPlaying); 
-                        }} 
+                        onClick={() => setIsPlaying(!isPlaying)} 
                         style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                         title={isPlaying ? "Pause" : "Play"}
                       >
@@ -354,7 +412,7 @@ export default function CameraWall() {
                         )}
                       </button>
                       <div style={{ width: '1px', height: '22px', background: 'rgba(255,255,255,0.2)' }}></div>
-                      <button onClick={() => setZoomLevel(z => Math.max(1, z - 0.25))} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }} title="Zoom Out">-</button>
+                      <button onClick={() => { setZoomLevel(z => Math.max(1, z - 0.25)); }} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }} title="Zoom Out">-</button>
                       <span style={{ color: '#fff', display: 'flex', alignItems: 'center', fontSize: '13px', minWidth: '40px', justifyContent: 'center' }}>{Math.round(zoomLevel * 100)}%</span>
                       <button onClick={() => setZoomLevel(z => Math.min(3, z + 0.25))} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '18px', fontWeight: 'bold' }} title="Zoom In">+</button>
                     </div>

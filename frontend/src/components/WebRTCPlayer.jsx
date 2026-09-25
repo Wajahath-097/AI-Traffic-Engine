@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 
 /**
  * High-Performance WebRTC (WHEP) Player with Triple Redundancy
@@ -15,14 +15,22 @@ export default function WebRTCPlayer({
   muted = true,
   style = {},
   onStatusChange,
-  placeholderSrc
+  placeholderSrc,
+  isPaused = false,
+  noFallback = false
 }) {
   const videoRef = useRef(null);
   const pcRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const isPlayingRef = useRef(false);
   const [useFallback, setUseFallback] = useState(false);
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
   const effectivePlaceholder = placeholderSrc || `${baseUrl}/api/cameras/${cameraId}/snapshot?c=1`;
+
+  // Keep ref in sync so timeout closure reads fresh value
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,6 +41,7 @@ export default function WebRTCPlayer({
       try {
         if (cancelled) return;
         setIsPlaying(false);
+        isPlayingRef.current = false;
         setUseFallback(false);
 
         pc = new RTCPeerConnection({
@@ -52,15 +61,16 @@ export default function WebRTCPlayer({
           if (cancelled || !videoRef.current) return;
           const stream = event.streams[0] || new MediaStream([event.track]);
           videoRef.current.srcObject = stream;
-          videoRef.current.play().catch((e) => {
-            console.log(`[WebRTC ${cameraId}] Autoplay notice:`, e);
-          });
+          if (!isPaused) {
+            videoRef.current.play().catch((e) => {
+              console.log(`[WebRTC ${cameraId}] Autoplay notice:`, e);
+            });
+          }
         };
 
         pc.onconnectionstatechange = () => {
           if (cancelled) return;
           if (pc.connectionState === 'connected') {
-            setIsPlaying(true);
             if (fallbackTimeout) clearTimeout(fallbackTimeout);
             if (onStatusChange) onStatusChange('online');
           } else if (pc.connectionState === 'failed') {
@@ -73,7 +83,6 @@ export default function WebRTCPlayer({
         pc.oniceconnectionstatechange = () => {
           if (cancelled) return;
           if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
-            setIsPlaying(true);
             if (fallbackTimeout) clearTimeout(fallbackTimeout);
           }
         };
@@ -103,17 +112,19 @@ export default function WebRTCPlayer({
           sdp: answerSdp
         }));
 
-        // Watchdog: If WebRTC has not started playing after 4 seconds, activate fallback
+        // Watchdog: If WebRTC has not started playing after 10 seconds, activate fallback
+        // Uses ref to read fresh isPlaying value (fixes stale closure for CAM07-10)
+        // noFallback mode (mini cards) skips MJPEG to prevent server overload
         fallbackTimeout = setTimeout(() => {
-          if (!cancelled && !isPlaying) {
+          if (!cancelled && !isPlayingRef.current && !noFallback) {
             console.log(`[WebRTC ${cameraId}] Connection wait timeout, engaging fallback`);
             setUseFallback(true);
           }
-        }, 4000);
+        }, 10000);
 
       } catch (err) {
         console.warn(`[WebRTC ${cameraId}] Setup error:`, err);
-        if (!cancelled) {
+        if (!cancelled && !noFallback) {
           setUseFallback(true);
         }
       }
@@ -133,6 +144,16 @@ export default function WebRTCPlayer({
       }
     };
   }, [cameraId, baseUrl]);
+
+  // Handle pause/resume without destroying the stream
+  useEffect(() => {
+    if (!videoRef.current || !videoRef.current.srcObject) return;
+    if (isPaused) {
+      videoRef.current.pause();
+    } else {
+      videoRef.current.play().catch(() => {});
+    }
+  }, [isPaused]);
 
   const objectFit = style.objectFit || 'cover';
 
@@ -160,20 +181,28 @@ export default function WebRTCPlayer({
           zIndex: 1,
           display: 'block'
         }}
+        onError={(e) => { e.target.style.display = 'none'; }}
       />
 
-      {/* Layer 2: Primary WebRTC Live Stream */}
+      {/* Layer 2: Primary WebRTC Live Stream - always mounted, never destroyed on pause */}
       {!useFallback && (
         <video
           ref={videoRef}
           autoPlay={autoPlay}
           muted={muted}
           playsInline
-          onPlaying={() => setIsPlaying(true)}
-          onLoadedData={() => setIsPlaying(true)}
+          onPlaying={() => {
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+          }}
+          onLoadedData={() => {
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+          }}
           onTimeUpdate={() => {
             if (videoRef.current && videoRef.current.currentTime > 0) {
               setIsPlaying(true);
+              isPlayingRef.current = true;
             }
           }}
           style={{

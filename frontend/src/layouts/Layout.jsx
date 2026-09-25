@@ -117,7 +117,6 @@ export default function Layout() {
         <div className="sidebar-header">
           <img src={logoImg} alt="Traffic Police Logo" className="gov-seal" />
           <h2>Traffic Police Department</h2>
-          <small>Government of Telangana</small>
         </div>
 
         <ul className="nav-menu">
@@ -185,16 +184,6 @@ export default function Layout() {
           )}
         </ul>
 
-        <div style={{ marginTop: 'auto', padding: '16px', marginBottom: '0', pointerEvents: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ width: '100%', marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
-            <img src={charminarImg} alt="Charminar" style={{ width: '225px', height: '170px', objectFit: 'cover', objectPosition: 'top', mixBlendMode: 'lighten', opacity: 0.9, WebkitMaskImage: 'radial-gradient(circle at 50% 45%, black 40%, transparent 70%)', maskImage: 'radial-gradient(circle at 50% 45%, black 40%, transparent 70%)' }} />
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#e2e8f0', letterSpacing: '0.5px', margin: '0 0 4px 0', textTransform: 'uppercase' }}>Hyderabad</h3>
-            <p style={{ fontSize: '10px', color: '#94a3b8', margin: 0, fontWeight: '500', letterSpacing: '0.2px' }}>Traffic Management System</p>
-            <div style={{ fontSize: '8px', color: '#64748b', marginTop: '6px' }}>Safe City • Smart Mobility • Better Tomorrow</div>
-          </div>
-        </div>
 
         <div className="nav-footer" style={{ marginTop: 0 }}>
           <button className="logout-btn" onClick={handleLogout}>
